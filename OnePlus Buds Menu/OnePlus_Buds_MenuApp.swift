@@ -94,30 +94,25 @@ private struct BudsPanelView: View {
                 .buttonStyle(.plain)
                 .help(isSettingsExpanded ? "Hide settings" : "Show settings")
 
-                HStack(alignment: .center, spacing: 12) {
-                    Text("Launch on login")
-                        .font(.system(size: 11, weight: .regular))
-                        .foregroundStyle(.paperSecondaryTextGradient)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                if isSettingsExpanded {
+                    HStack(alignment: .center, spacing: 12) {
+                        Text("Launch on login")
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(.paperSecondaryTextGradient)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                    PaperToggle(
-                        isOn: Binding(
-                            get: { launchAtLogin.isEnabled },
-                            set: { launchAtLogin.setEnabled($0) }
-                        ),
-                        status: launchAtLogin.accessibilityStatus
-                    )
+                        PaperToggle(
+                            isOn: Binding(
+                                get: { launchAtLogin.isEnabled },
+                                set: { launchAtLogin.setEnabled($0) }
+                            ),
+                            status: launchAtLogin.accessibilityStatus
+                        )
+                    }
+                    .frame(height: 16)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+                    .help(launchAtLogin.errorMessage ?? "Open OnePlus Buds Menu automatically when you sign in")
                 }
-                .frame(height: 16)
-                .padding(.top, 12)
-                .frame(height: isSettingsExpanded ? settingsContentHeight : 0, alignment: .bottom)
-                .clipped()
-                .opacity(isSettingsExpanded ? 1 : 0)
-                .scaleEffect(isSettingsExpanded ? 1 : 0.96, anchor: .top)
-                .allowsHitTesting(isSettingsExpanded)
-                .accessibilityHidden(!isSettingsExpanded)
-                .help(launchAtLogin.errorMessage ?? "Open OnePlus Buds Menu automatically when you sign in")
-                .animation(standardSpring, value: isSettingsExpanded)
 
                 PaperDivider()
             }
@@ -173,7 +168,6 @@ private struct BudsPanelView: View {
         reduceMotion ? .easeOut(duration: 0.18) : .spring(response: 0.36, dampingFraction: 0.82)
     }
 
-    private let settingsContentHeight: CGFloat = 28
 }
 
 @MainActor
