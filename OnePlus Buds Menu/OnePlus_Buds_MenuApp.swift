@@ -25,6 +25,7 @@ struct OnePlusBudsMenuApp: App {
 
 private struct BudsPanelView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isSettingsExpanded = false
 
     @ObservedObject var controller: BudsCommandController
@@ -72,7 +73,9 @@ private struct BudsPanelView: View {
                 PaperDivider()
 
                 Button {
-                    isSettingsExpanded.toggle()
+                    withAnimation(standardSpring) {
+                        isSettingsExpanded.toggle()
+                    }
                 } label: {
                     HStack(spacing: 8) {
                         Text("Settings")
@@ -80,32 +83,41 @@ private struct BudsPanelView: View {
                             .foregroundStyle(.paperSecondaryTextGradient)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
-                        Image(systemName: isSettingsExpanded ? "chevron.down" : "chevron.right")
+                        Image(systemName: "chevron.down")
                             .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(.paperSecondaryTextGradient)
+                            .rotationEffect(.degrees(isSettingsExpanded ? 0 : -90))
+                            .animation(standardSpring, value: isSettingsExpanded)
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help(isSettingsExpanded ? "Hide settings" : "Show settings")
 
-                if isSettingsExpanded {
-                    HStack(alignment: .center, spacing: 12) {
-                        Text("Launch on login")
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundStyle(.paperSecondaryTextGradient)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(alignment: .center, spacing: 12) {
+                    Text("Launch on login")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(.paperSecondaryTextGradient)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                        PaperToggle(
-                            isOn: Binding(
-                                get: { launchAtLogin.isEnabled },
-                                set: { launchAtLogin.setEnabled($0) }
-                            ),
-                            status: launchAtLogin.accessibilityStatus
-                        )
-                    }
-                    .help(launchAtLogin.errorMessage ?? "Open OnePlus Buds Menu automatically when you sign in")
+                    PaperToggle(
+                        isOn: Binding(
+                            get: { launchAtLogin.isEnabled },
+                            set: { launchAtLogin.setEnabled($0) }
+                        ),
+                        status: launchAtLogin.accessibilityStatus
+                    )
                 }
+                .frame(height: 16)
+                .padding(.top, 12)
+                .frame(height: isSettingsExpanded ? settingsContentHeight : 0, alignment: .bottom)
+                .clipped()
+                .opacity(isSettingsExpanded ? 1 : 0)
+                .scaleEffect(isSettingsExpanded ? 1 : 0.96, anchor: .top)
+                .allowsHitTesting(isSettingsExpanded)
+                .accessibilityHidden(!isSettingsExpanded)
+                .help(launchAtLogin.errorMessage ?? "Open OnePlus Buds Menu automatically when you sign in")
+                .animation(standardSpring, value: isSettingsExpanded)
 
                 PaperDivider()
             }
@@ -135,6 +147,8 @@ private struct BudsPanelView: View {
                 .shadow(color: panelShadowColor, radius: 35, x: 0, y: 24)
                 .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.08), radius: 9, x: 0, y: 4)
         )
+        .animation(standardSpring, value: isSettingsExpanded)
+        .animation(standardSpring, value: controller.isCommandReady)
     }
 
     private var deviceTitle: String {
@@ -142,7 +156,7 @@ private struct BudsPanelView: View {
     }
 
     private var headerTitle: String {
-        controller.isCommandReady ? "\(deviceTitle) · 70%" : deviceTitle
+        deviceTitle
     }
 
     private var panelBorderColor: Color {
@@ -154,6 +168,12 @@ private struct BudsPanelView: View {
     private var panelShadowColor: Color {
         Color.black.opacity(colorScheme == .dark ? 0.55 : 0.18)
     }
+
+    private var standardSpring: Animation {
+        reduceMotion ? .easeOut(duration: 0.18) : .spring(response: 0.36, dampingFraction: 0.82)
+    }
+
+    private let settingsContentHeight: CGFloat = 28
 }
 
 @MainActor
@@ -206,22 +226,31 @@ private struct PaperToggle: View {
 }
 
 private struct PaperToggleStyle: ToggleStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
         Button {
             configuration.isOn.toggle()
         } label: {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.paperToggleTrack)
-                .frame(width: 30, height: 16)
-                .overlay(alignment: configuration.isOn ? .trailing : .leading) {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(configuration.isOn ? Color.paperSelected : Color.paperToggleThumb)
-                        .frame(width: 12, height: 12)
-                        .padding(.horizontal, 2)
-                }
-                .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(configuration.isOn ? .paperToggleActiveTrack : .paperToggleTrack)
+
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(configuration.isOn ? .white : Color.paperToggleThumb)
+                    .frame(width: 12, height: 12)
+                    .padding(2)
+                    .shadow(color: Color.black.opacity(configuration.isOn ? 0.10 : 0.16), radius: 1, y: 0.5)
+            }
+            .frame(width: 30, height: 16)
+            .animation(toggleSpring, value: configuration.isOn)
+            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+
+    private var toggleSpring: Animation {
+        reduceMotion ? .easeOut(duration: 0.18) : .spring(response: 0.32, dampingFraction: 0.72)
     }
 }
 
@@ -234,6 +263,8 @@ private struct PaperDivider: View {
 }
 
 private struct NoiseControlOptionButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let mode: NoiseControlMode
     let isSelected: Bool
     let isLoading: Bool
@@ -263,6 +294,7 @@ private struct NoiseControlOptionButton: View {
                         Circle()
                             .fill(controlColor)
                     )
+                    .scaleEffect(isSelected || isLoading ? 1 : 0.94)
                     .opacity(isLoading ? 0 : 1)
                     .overlay {
                         if isLoading {
@@ -275,6 +307,7 @@ private struct NoiseControlOptionButton: View {
                                     Circle()
                                         .fill(selectedColor)
                                 )
+                                .transition(loadingTransition)
                         }
                     }
 
@@ -288,8 +321,10 @@ private struct NoiseControlOptionButton: View {
             }
             .frame(width: 70)
             .contentShape(Rectangle())
+            .animation(selectionSpring, value: isSelected)
+            .animation(selectionSpring, value: isLoading)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PaperPressButtonStyle())
         .disabled(!isEnabled)
         .help(isLoading ? "Changing to \(mode.title)" : mode.title)
         .accessibilityLabel(mode.title)
@@ -319,6 +354,28 @@ private struct NoiseControlOptionButton: View {
 
     private var unselectedColor: Color {
         Color.paperInactiveControl
+    }
+
+    private var selectionSpring: Animation {
+        reduceMotion ? .easeOut(duration: 0.18) : .spring(response: 0.34, dampingFraction: 0.78)
+    }
+
+    private var loadingTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.82))
+    }
+}
+
+private struct PaperPressButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .animation(
+                reduceMotion ? .easeOut(duration: 0.12) : .spring(response: 0.22, dampingFraction: 0.72),
+                value: configuration.isPressed
+            )
     }
 }
 
@@ -374,6 +431,25 @@ private extension Color {
 }
 
 private extension ShapeStyle where Self == LinearGradient {
+    static var paperToggleActiveTrack: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: Color(red: 255 / 255, green: 106 / 255, blue: 0), location: 0),
+                .init(color: Color(red: 194 / 255, green: 79 / 255, blue: 2 / 255), location: 1)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    static var paperToggleTrack: LinearGradient {
+        LinearGradient(
+            colors: [Color.paperToggleTrack],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
     static var paperSecondaryTextGradient: LinearGradient {
         LinearGradient(
             stops: [
