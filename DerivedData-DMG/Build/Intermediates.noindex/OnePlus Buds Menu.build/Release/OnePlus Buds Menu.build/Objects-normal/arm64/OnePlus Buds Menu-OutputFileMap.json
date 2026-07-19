@@ -1,0 +1,31 @@
+{
+  "" : {
+    "const-values" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/OnePlus Buds Menu-primary.swiftconstvalues",
+    "dependencies" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/OnePlus Buds Menu-primary.d",
+    "diagnostics" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/OnePlus Buds Menu-primary.dia",
+    "emit-module-dependencies" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/OnePlus Buds Menu-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/OnePlus Buds Menu-primary-emit-module.dia",
+    "pch" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/OnePlus Buds Menu-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/OnePlus Buds Menu-primary.swiftdeps"
+  },
+  "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/GeneratedAssetSymbols.o"
+  },
+  "/Users/saketjoshi/Projects/OnePlus Buds Menu/OnePlus Buds Menu/BudsCommandController.swift" : {
+    "index-unit-output-path" : "/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/BudsCommandController.o",
+    "llvm-bc" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/BudsCommandController.bc",
+    "object" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/BudsCommandController.o"
+  },
+  "/Users/saketjoshi/Projects/OnePlus Buds Menu/OnePlus Buds Menu/ContentView.swift" : {
+    "index-unit-output-path" : "/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/ContentView.o"
+  },
+  "/Users/saketjoshi/Projects/OnePlus Buds Menu/OnePlus Buds Menu/OnePlus_Buds_MenuApp.swift" : {
+    "index-unit-output-path" : "/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/OnePlus_Buds_MenuApp.o",
+    "llvm-bc" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/OnePlus_Buds_MenuApp.bc",
+    "object" : "/Users/saketjoshi/Projects/OnePlus Buds Menu/DerivedData-DMG/Build/Intermediates.noindex/OnePlus Buds Menu.build/Release/OnePlus Buds Menu.build/Objects-normal/arm64/OnePlus_Buds_MenuApp.o"
+  }
+}

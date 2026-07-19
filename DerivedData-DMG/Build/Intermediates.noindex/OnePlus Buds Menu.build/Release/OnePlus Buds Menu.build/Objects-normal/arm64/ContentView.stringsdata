@@ -1,0 +1,16 @@
+{
+  "source": "/Users/saketjoshi/Projects/OnePlus Buds Menu/OnePlus Buds Menu/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Hello, world!",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 16
+        }
+      }
+    ]
+  },
+  "version": 1
+}
