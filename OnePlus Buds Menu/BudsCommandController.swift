@@ -104,6 +104,12 @@ final class BudsCommandController: NSObject, ObservableObject {
         }
 
         let sequenceID = nextCommandSequenceID()
+        let previousMode = selectedMode
+        // Make the control reflect the user's current choice immediately. The
+        // earbuds' acknowledgement can arrive later (or be omitted by some
+        // firmware versions), but it should not leave the previous option
+        // visually selected in the meantime.
+        selectedMode = mode
         pendingMode = mode
         status = "Changing noise control..."
 
@@ -111,6 +117,7 @@ final class BudsCommandController: NSObject, ObservableObject {
             [0xAA, 0x0A, 0x00, 0x00, 0x04, 0x04, 0x42, 0x03, 0x00, 0x01, 0x01, mode.modeByte],
             name: "ANC_SET"
         ) else {
+            selectedMode = previousMode
             pendingMode = nil
             status = "Control unavailable"
             return
