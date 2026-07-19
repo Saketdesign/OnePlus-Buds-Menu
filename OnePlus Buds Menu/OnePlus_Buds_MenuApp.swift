@@ -37,9 +37,9 @@ private struct BudsPanelView: View {
                 Text(headerTitle)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                .font(.system(size: 11, weight: .regular))
-                .foregroundStyle(.paperSecondaryTextGradient)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(.paperSecondaryTextGradient)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 PaperToggle(
                     isOn: Binding(
@@ -68,6 +68,30 @@ private struct BudsPanelView: View {
                             controller.select(mode)
                         }
                     }
+                }
+
+                PaperDivider()
+
+                Text("Battery")
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(.paperSecondaryTextGradient)
+
+                HStack(alignment: .top, spacing: 12) {
+                    BatteryMetricView(
+                        metric: .total,
+                        title: "Total",
+                        percentage: controller.displayBattery?.totalWeightedPercent
+                    )
+                    BatteryMetricView(
+                        metric: .left,
+                        title: "Left",
+                        percentage: controller.battery?.left
+                    )
+                    BatteryMetricView(
+                        metric: .right,
+                        title: "Right",
+                        percentage: controller.battery?.right
+                    )
                 }
 
                 PaperDivider()
@@ -144,6 +168,9 @@ private struct BudsPanelView: View {
         )
         .animation(standardSpring, value: isSettingsExpanded)
         .animation(standardSpring, value: controller.isCommandReady)
+        .onAppear {
+            controller.refreshBatteryIfNeeded()
+        }
     }
 
     private var deviceTitle: String {
@@ -356,6 +383,62 @@ private struct NoiseControlOptionButton: View {
 
     private var loadingTransition: AnyTransition {
         reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.82))
+    }
+}
+
+private enum BatteryMetric {
+    case total
+    case left
+    case right
+
+    func symbolName(for percentage: Int?) -> String {
+        switch self {
+        case .left:
+            return "earbud.left"
+        case .right:
+            return "earbud.right"
+        case .total:
+            guard let percentage else { return "battery.0percent" }
+            switch percentage {
+            case ..<13: return "battery.0percent"
+            case ..<38: return "battery.25percent"
+            case ..<63: return "battery.50percent"
+            case ..<88: return "battery.75percent"
+            default: return "battery.100percent"
+            }
+        }
+    }
+}
+
+private struct BatteryMetricView: View {
+    let metric: BatteryMetric
+    let title: String
+    let percentage: Int?
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: metric.symbolName(for: percentage))
+                .symbolRenderingMode(.monochrome)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color.paperInactiveIcon)
+                .frame(width: 43, height: 43)
+                .background(Circle().fill(Color.paperInactiveControl))
+
+            VStack(spacing: 2) {
+                Text(title)
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(.paperSecondaryTextGradient)
+
+                Text(percentage.map { "\($0)%" } ?? "—")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.paperSelectedTextGradient)
+                    .monospacedDigit()
+            }
+        }
+        .frame(width: 70)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(percentage.map { "\($0) percent" } ?? "Unavailable")
     }
 }
 
