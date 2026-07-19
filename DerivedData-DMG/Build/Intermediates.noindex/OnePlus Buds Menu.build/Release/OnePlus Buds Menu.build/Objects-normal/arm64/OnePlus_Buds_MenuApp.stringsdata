@@ -4,18 +4,18 @@
     "Localizable": [
       {
         "comment": "",
-        "key": "OnePlus Buds",
+        "key": "Noise control",
         "location": {
           "startingColumn": 22,
-          "startingLine": 19
+          "startingLine": 68
         }
       },
       {
         "comment": "",
-        "key": "Noise control",
+        "key": "Battery",
         "location": {
           "startingColumn": 22,
-          "startingLine": 56
+          "startingLine": 87
         }
       },
       {
@@ -23,7 +23,7 @@
         "key": "Hide settings",
         "location": {
           "startingColumn": 44,
-          "startingLine": 95
+          "startingLine": 131
         }
       },
       {
@@ -31,7 +31,7 @@
         "key": "Show settings",
         "location": {
           "startingColumn": 62,
-          "startingLine": 95
+          "startingLine": 131
         }
       },
       {
@@ -39,7 +39,7 @@
         "key": "Quit app",
         "location": {
           "startingColumn": 19,
-          "startingLine": 130
+          "startingLine": 166
         }
       },
       {
@@ -47,7 +47,7 @@
         "key": "Settings",
         "location": {
           "startingColumn": 30,
-          "startingLine": 81
+          "startingLine": 117
         }
       },
       {
@@ -55,7 +55,7 @@
         "key": "Launch on login",
         "location": {
           "startingColumn": 30,
-          "startingLine": 99
+          "startingLine": 135
         }
       },
       {
@@ -63,7 +63,7 @@
         "key": "Quit app",
         "location": {
           "startingColumn": 22,
-          "startingLine": 123
+          "startingLine": 159
         }
       },
       {
@@ -71,7 +71,7 @@
         "key": "Earbuds connection",
         "location": {
           "startingColumn": 16,
-          "startingLine": 213
+          "startingLine": 252
         }
       },
       {
@@ -79,7 +79,7 @@
         "key": "Disconnect earbuds",
         "location": {
           "startingColumn": 26,
-          "startingLine": 216
+          "startingLine": 255
         }
       },
       {
@@ -87,7 +87,7 @@
         "key": "Connect earbuds",
         "location": {
           "startingColumn": 49,
-          "startingLine": 216
+          "startingLine": 255
         }
       },
       {
@@ -95,7 +95,47 @@
         "key": "Earbuds connection",
         "location": {
           "startingColumn": 33,
-          "startingLine": 217
+          "startingLine": 256
+        }
+      },
+      {
+        "comment": "",
+        "key": "—",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 444
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%%",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 444
+        }
+      },
+      {
+        "comment": "",
+        "key": "—",
+        "location": {
+          "startingColumn": 53,
+          "startingLine": 444
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld percent",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 453
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unavailable",
+        "location": {
+          "startingColumn": 67,
+          "startingLine": 453
         }
       }
     ]
