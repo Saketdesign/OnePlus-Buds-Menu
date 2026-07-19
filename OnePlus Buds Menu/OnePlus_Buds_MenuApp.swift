@@ -16,10 +16,22 @@ struct OnePlusBudsMenuApp: App {
     @StateObject private var launchAtLogin = LaunchAtLoginController()
 
     var body: some Scene {
-        MenuBarExtra("OnePlus Buds", image: "MenuBarLogo") {
+        MenuBarExtra {
             BudsPanelView(controller: controller, launchAtLogin: launchAtLogin)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "earbuds.in.ear")
+
+                if let menuBarBatteryText {
+                    Text(menuBarBatteryText)
+                }
+            }
         }
         .menuBarExtraStyle(.window)
+    }
+
+    private var menuBarBatteryText: String? {
+        controller.displayBattery?.totalWeightedPercent.map { "\($0)%" }
     }
 }
 
