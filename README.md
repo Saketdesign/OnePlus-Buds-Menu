@@ -55,3 +55,5 @@ Artifacts/OnePlus-Buds-Menu.dmg
 ## Notes
 
 The app uses private Bluetooth command packets for OnePlus Buds control. Behavior can vary by firmware version and device model.
+
+The project is built as a native SwiftUI menu bar app for macOS.
