@@ -7,14 +7,17 @@
 
 import SwiftUI
 import AppKit
+import Combine
+import ServiceManagement
 
 @main
 struct OnePlusBudsMenuApp: App {
     @StateObject private var controller = BudsCommandController()
+    @StateObject private var launchAtLogin = LaunchAtLoginController()
 
     var body: some Scene {
         MenuBarExtra("OnePlus Buds", systemImage: "headphones") {
-            BudsPanelView(controller: controller)
+            BudsPanelView(controller: controller, launchAtLogin: launchAtLogin)
         }
         .menuBarExtraStyle(.window)
     }
@@ -22,13 +25,15 @@ struct OnePlusBudsMenuApp: App {
 
 private struct BudsPanelView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isSettingsExpanded = false
 
     @ObservedObject var controller: BudsCommandController
+    @ObservedObject var launchAtLogin: LaunchAtLoginController
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 12) {
-                Text(deviceTitle)
+                Text(headerTitle)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 .font(.system(size: 11, weight: .regular))
@@ -65,10 +70,42 @@ private struct BudsPanelView: View {
                 }
 
                 PaperDivider()
-            } else if controller.isConnecting || controller.isConnected {
-                Text(controller.status)
-                    .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(.paperSecondaryTextGradient)
+
+                Button {
+                    isSettingsExpanded.toggle()
+                } label: {
+                    HStack(spacing: 8) {
+                        Text("Settings")
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(.paperSecondaryTextGradient)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Image(systemName: isSettingsExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.paperSecondaryTextGradient)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(isSettingsExpanded ? "Hide settings" : "Show settings")
+
+                if isSettingsExpanded {
+                    HStack(alignment: .center, spacing: 12) {
+                        Text("Launch on login")
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(.paperSecondaryTextGradient)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        PaperToggle(
+                            isOn: Binding(
+                                get: { launchAtLogin.isEnabled },
+                                set: { launchAtLogin.setEnabled($0) }
+                            ),
+                            status: launchAtLogin.accessibilityStatus
+                        )
+                    }
+                    .help(launchAtLogin.errorMessage ?? "Open OnePlus Buds Menu automatically when you sign in")
+                }
 
                 PaperDivider()
             }
@@ -104,6 +141,10 @@ private struct BudsPanelView: View {
         controller.deviceName ?? "Saket's oneplus buds 4"
     }
 
+    private var headerTitle: String {
+        controller.isCommandReady ? "\(deviceTitle) · 70%" : deviceTitle
+    }
+
     private var panelBorderColor: Color {
         colorScheme == .dark
             ? Color.white.opacity(0.10)
@@ -112,6 +153,41 @@ private struct BudsPanelView: View {
 
     private var panelShadowColor: Color {
         Color.black.opacity(colorScheme == .dark ? 0.55 : 0.18)
+    }
+}
+
+@MainActor
+private final class LaunchAtLoginController: ObservableObject {
+    @Published private(set) var isEnabled: Bool
+    @Published private(set) var errorMessage: String?
+
+    init() {
+        isEnabled = SMAppService.mainApp.status == .enabled
+    }
+
+    var accessibilityStatus: String {
+        if let errorMessage {
+            return errorMessage
+        }
+
+        return isEnabled ? "Enabled" : "Disabled"
+    }
+
+    func setEnabled(_ enabled: Bool) {
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+
+            isEnabled = SMAppService.mainApp.status == .enabled
+            errorMessage = nil
+        } catch {
+            isEnabled = SMAppService.mainApp.status == .enabled
+            errorMessage = "Could not update launch at login"
+            print("Failed to update launch at login: \(error.localizedDescription)")
+        }
     }
 }
 
@@ -167,11 +243,11 @@ private struct NoiseControlOptionButton: View {
     private var iconName: String {
         switch mode {
         case .noiseCancellation:
-            return "person.crop.circle"
+            return "person.circle"
         case .transparency:
-            return "person.crop.circle.badge.checkmark"
+            return "person.2.circle"
         case .off:
-            return "speaker.slash"
+            return "speaker.slash.fill"
         }
     }
 
@@ -248,7 +324,7 @@ private struct NoiseControlOptionButton: View {
 
 private extension Color {
     static let paperPanel = dynamicColor(
-        light: NSColor(red: 240 / 255, green: 240 / 255, blue: 237 / 255, alpha: 1),
+        light: NSColor(red: 245 / 255, green: 245 / 255, blue: 242 / 255, alpha: 1),
         dark: NSColor(red: 31 / 255, green: 31 / 255, blue: 29 / 255, alpha: 1)
     )
 
