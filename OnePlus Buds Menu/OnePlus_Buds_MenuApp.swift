@@ -16,7 +16,7 @@ struct OnePlusBudsMenuApp: App {
     @StateObject private var launchAtLogin = LaunchAtLoginController()
 
     var body: some Scene {
-        MenuBarExtra("OnePlus Buds", systemImage: "headphones") {
+        MenuBarExtra("OnePlus Buds", image: "MenuBarLogo") {
             BudsPanelView(controller: controller, launchAtLogin: launchAtLogin)
         }
         .menuBarExtraStyle(.window)
