@@ -45,9 +45,12 @@ final class BudsCommandController: NSObject, ObservableObject {
     private var operationGeneration = 0
     private var retryAttempt = 0
     private var didTryPersistedPeripheral = false
+    private var reconnectOnDisconnect = false
     private var timeoutWorkItem: DispatchWorkItem?
     private var retryWorkItem: DispatchWorkItem?
     private var lastBatteryQueryAt: Date?
+    private var hasReceivedHelloAcknowledgement = false
+    private var hasSentRegistration = false
 
     private let reconnectPolicy = ReconnectPolicy()
 
@@ -125,6 +128,7 @@ final class BudsCommandController: NSObject, ObservableObject {
 
     func disconnect() {
         isConnectionEnabled = false
+        reconnectOnDisconnect = false
         cancelScheduledWork()
         invalidateOperations()
         central?.stopScan()
@@ -186,6 +190,7 @@ final class BudsCommandController: NSObject, ObservableObject {
         cancelTimeout()
         central.stopScan()
         peripheral = candidate
+        reconnectOnDisconnect = true
         candidate.delegate = self
         deviceName = candidate.name ?? deviceName
         phase = .connecting
@@ -196,6 +201,8 @@ final class BudsCommandController: NSObject, ObservableObject {
     private func beginProtocolSetup() {
         guard notifyCharacteristic?.isNotifying == true else { return }
         phase = .registering
+        hasReceivedHelloAcknowledgement = false
+        hasSentRegistration = false
         let generation = nextGeneration()
         guard enqueue(BudsProtocolCodec.hello, name: "HELLO") else {
             fail("The earbuds do not support commands", shouldRetry: false)
@@ -203,7 +210,12 @@ final class BudsCommandController: NSObject, ObservableObject {
         }
 
         schedule(after: 0.6, generation: generation) { controller in
-            _ = controller.enqueue(BudsProtocolCodec.registration, name: "REGISTER")
+            guard controller.enqueue(BudsProtocolCodec.registration, name: "REGISTER") else {
+                controller.fail("The registration command could not be sent", shouldRetry: false)
+                return
+            }
+            controller.hasSentRegistration = true
+            controller.completeProtocolSetupIfPossible()
         }
         for delay in [1.2, 2.4, 3.6] {
             schedule(after: delay, generation: generation) { controller in
@@ -211,19 +223,30 @@ final class BudsCommandController: NSObject, ObservableObject {
                 _ = controller.enqueue(BudsProtocolCodec.noiseControlQuery, name: "ANC_QUERY")
             }
         }
-        setTimeout(after: 5, message: "The earbuds did not complete setup", shouldRetry: true)
+        setTimeout(after: 5, message: "The earbuds did not complete setup", shouldRetry: false)
     }
 
-    private func markReady(mode: NoiseControlMode) {
+    private func markReady(mode: NoiseControlMode? = nil) {
         cancelTimeout()
         retryAttempt = 0
-        selectedMode = mode
+        if let mode {
+            selectedMode = mode
+        }
         pendingMode = nil
         phase = .ready
         if let identifier = peripheral?.identifier.uuidString {
             defaults.set(identifier, forKey: persistedPeripheralKey)
         }
+        if mode == nil {
+            _ = enqueue(BudsProtocolCodec.noiseControlQuery, name: "ANC_QUERY_INITIAL")
+        }
         refreshBatteryIfNeeded(force: true)
+    }
+
+    private func completeProtocolSetupIfPossible() {
+        guard phase == .registering else { return }
+        guard hasReceivedHelloAcknowledgement, hasSentRegistration else { return }
+        markReady()
     }
 
     @discardableResult
@@ -270,6 +293,9 @@ final class BudsCommandController: NSObject, ObservableObject {
 
     private func handle(_ event: BudsProtocolCodec.Event) {
         switch event {
+        case .helloAcknowledged:
+            hasReceivedHelloAcknowledgement = true
+            completeProtocolSetupIfPossible()
         case .noiseControlMode(let mode):
             if phase == .registering {
                 markReady(mode: mode)
@@ -315,10 +341,12 @@ final class BudsCommandController: NSObject, ObservableObject {
         central?.stopScan()
         phase = .failed(message)
         logger.error("Bluetooth session failed: \(message, privacy: .public)")
+        reconnectOnDisconnect = shouldRetry
         if let peripheral, peripheral.state != .disconnected {
             central?.cancelPeripheralConnection(peripheral)
+        } else if shouldRetry {
+            scheduleReconnect()
         }
-        if shouldRetry { scheduleReconnect() }
     }
 
     private func scheduleReconnect() {
@@ -385,6 +413,8 @@ final class BudsCommandController: NSObject, ObservableObject {
         queuedWrites.removeAll()
         writeInFlight = false
         lastBatteryQueryAt = nil
+        hasReceivedHelloAcknowledgement = false
+        hasSentRegistration = false
         battery = nil
         if clearDeviceName { deviceName = nil }
     }
@@ -393,6 +423,10 @@ final class BudsCommandController: NSObject, ObservableObject {
 extension BudsCommandController: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         guard isConnectionEnabled else { return }
+        // CoreBluetooth can deliver a redundant state callback while a
+        // peripheral connection is being torn down. A failed setup must remain
+        // failed until the user explicitly presses Retry.
+        if case .failed = phase { return }
         startConnectionIfPossible()
     }
 
@@ -418,13 +452,17 @@ extension BudsCommandController: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        let shouldRetry = reconnectOnDisconnect
+        reconnectOnDisconnect = false
         let message = error?.localizedDescription ?? "The earbuds disconnected"
         resetPeripheralState(clearDeviceName: false)
         guard isConnectionEnabled else {
             phase = .disabled
             return
         }
-        fail(message, shouldRetry: true)
+        if shouldRetry {
+            fail(message, shouldRetry: true)
+        }
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
@@ -500,7 +538,12 @@ extension BudsCommandController: CBPeripheralDelegate {
         guard let data = characteristic.value else { return }
         let events = BudsProtocolCodec.decode(data)
         if events.isEmpty {
+            #if DEBUG
+            let hex = data.map { String(format: "%02X", $0) }.joined(separator: " ")
+            logger.debug("Ignored earbud packet: \(hex, privacy: .public)")
+            #else
             logger.debug("Ignored an unrecognized earbud packet")
+            #endif
         }
         events.forEach(handle)
     }

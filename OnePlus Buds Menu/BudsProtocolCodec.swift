@@ -2,6 +2,7 @@ import Foundation
 
 struct BudsProtocolCodec {
     enum Event: Equatable {
+        case helloAcknowledged
         case noiseControlMode(NoiseControlMode)
         case noiseControlAcknowledged
         case battery(BudsBatteryStatus, isTelemetry: Bool)
@@ -29,6 +30,9 @@ struct BudsProtocolCodec {
         guard hasValidEnvelope(bytes) else { return [] }
 
         var events: [Event] = []
+        if isHelloAcknowledgement(bytes) {
+            events.append(.helloAcknowledged)
+        }
         if let battery = batteryStatus(from: bytes) {
             events.append(.battery(battery, isTelemetry: false))
         } else if let battery = batteryTelemetryStatus(from: bytes) {
@@ -46,12 +50,11 @@ struct BudsProtocolCodec {
     }
 
     private static func hasValidEnvelope(_ bytes: [UInt8]) -> Bool {
-        guard bytes.count >= 6, bytes[0] == 0xAA else { return false }
-        // Known firmware families encode the payload length with either a two-
-        // or three-byte framing overhead. Reject values that cannot describe
-        // the received packet without assuming an undocumented checksum.
-        let declaredLength = Int(bytes[1])
-        return declaredLength + 2 == bytes.count || declaredLength + 3 == bytes.count
+        // Firmware variants use more than one length convention. Do not reject
+        // a packet solely because its undocumented length field differs from a
+        // captured variant; each command parser below validates its own fields
+        // and bounds before consuming the payload.
+        bytes.count >= 6 && bytes[0] == 0xAA
     }
 
     private static func reportedNoiseControlMode(from bytes: [UInt8]) -> NoiseControlMode? {
@@ -59,6 +62,10 @@ struct BudsProtocolCodec {
         guard [0x02, 0x82, 0x84].contains(bytes[5]) else { return nil }
         guard bytes[9] == 0x01, bytes[10] == 0x01 else { return nil }
         return NoiseControlMode.allCases.first { $0.modeByte == bytes[11] }
+    }
+
+    private static func isHelloAcknowledgement(_ bytes: [UInt8]) -> Bool {
+        bytes.count >= 7 && bytes[4] == 0x00 && bytes[5] == 0x81 && bytes[6] == 0x23
     }
 
     private static func batteryStatus(from bytes: [UInt8]) -> BudsBatteryStatus? {
@@ -157,4 +164,3 @@ struct BudsProtocolCodec {
         return casePercent
     }
 }
-

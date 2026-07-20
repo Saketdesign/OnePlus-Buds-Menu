@@ -2,6 +2,14 @@ import XCTest
 @testable import OnePlus_Buds_Menu
 
 final class BudsProtocolCodecTests: XCTestCase {
+    func testDecodesCapturedHelloAcknowledgement() {
+        let packet = Data([
+            0xAA, 0x10, 0x00, 0x00, 0x00, 0x81, 0x23, 0x09, 0x00,
+            0x00, 0xFF, 0x77, 0x5A, 0xEA, 0x67, 0x0E, 0x20, 0x07
+        ])
+        XCTAssertEqual(BudsProtocolCodec.decode(packet), [.helloAcknowledged])
+    }
+
     func testNoiseControlCommandEncoding() {
         XCTAssertEqual(
             BudsProtocolCodec.noiseControlCommand(.transparency),
@@ -59,4 +67,3 @@ final class BudsProtocolCodecTests: XCTestCase {
         XCTAssertNil(status.case)
     }
 }
-
