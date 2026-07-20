@@ -3,11 +3,11 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DMG_DIR="$ROOT_DIR/Packaging/DMG"
-APP_PATH="${1:-$ROOT_DIR/DerivedData-DMG/Build/Products/Release/OnePlus Buds Menu.app}"
+APP_PATH="${1:-$ROOT_DIR/Build/DerivedData/Build/Products/Release/OnePlus Buds Menu.app}"
 OUTPUT_DIR="$ROOT_DIR/Artifacts"
 VOLUME_NAME="OnePlus Buds Menu"
 DMG_NAME="OnePlus-Buds-Menu.dmg"
-STAGING_DIR="$ROOT_DIR/DMG-Staging"
+STAGING_DIR=""
 RW_DMG="$OUTPUT_DIR/$VOLUME_NAME-rw.dmg"
 FINAL_DMG="$OUTPUT_DIR/$DMG_NAME"
 
@@ -17,9 +17,26 @@ if [[ ! -d "$APP_PATH" ]]; then
   exit 1
 fi
 
-python3 "$DMG_DIR/generate-background.py"
+if [[ ! -f "$DMG_DIR/generated/dmg-background.png" ]]; then
+  echo "DMG background not found. Run generate-background.py first." >&2
+  exit 1
+fi
 
-rm -rf "$STAGING_DIR"
+STAGING_DIR="$(mktemp -d "$ROOT_DIR/.dmg-staging.XXXXXX")"
+DEVICE=""
+MOUNT_POINT=""
+
+cleanup() {
+  if [[ -n "$MOUNT_POINT" && -d "$MOUNT_POINT" ]]; then
+    hdiutil detach "$MOUNT_POINT" -quiet || true
+  elif [[ -n "$DEVICE" ]]; then
+    hdiutil detach "$DEVICE" -quiet || true
+  fi
+  rm -rf "$STAGING_DIR"
+  rm -f "$RW_DMG"
+}
+trap cleanup EXIT
+
 mkdir -p "$STAGING_DIR/.background" "$OUTPUT_DIR"
 cp -R "$APP_PATH" "$STAGING_DIR/"
 ln -s /Applications "$STAGING_DIR/Applications"
@@ -36,15 +53,6 @@ hdiutil create \
 MOUNT_OUTPUT="$(hdiutil attach "$RW_DMG" -readwrite -noverify -noautoopen)"
 DEVICE="$(printf '%s\n' "$MOUNT_OUTPUT" | awk -F '\t' 'index($NF, "/Volumes/") == 1 { print $1; exit }')"
 MOUNT_POINT="$(printf '%s\n' "$MOUNT_OUTPUT" | awk -F '\t' 'index($NF, "/Volumes/") == 1 { print $NF; exit }')"
-
-cleanup() {
-  if [[ -n "${MOUNT_POINT:-}" && -d "$MOUNT_POINT" ]]; then
-    hdiutil detach "$MOUNT_POINT" -quiet || true
-  elif [[ -n "${DEVICE:-}" ]]; then
-    hdiutil detach "$DEVICE" -quiet || true
-  fi
-}
-trap cleanup EXIT
 
 osascript <<APPLESCRIPT
 tell application "Finder"
@@ -72,10 +80,12 @@ APPLESCRIPT
 
 sync
 hdiutil detach "$MOUNT_POINT" -quiet
-trap - EXIT
+MOUNT_POINT=""
+DEVICE=""
 
 hdiutil convert "$RW_DMG" -format UDZO -imagekey zlib-level=9 -o "$FINAL_DMG"
 rm -f "$RW_DMG"
 rm -rf "$STAGING_DIR"
+trap - EXIT
 
 echo "$FINAL_DMG"

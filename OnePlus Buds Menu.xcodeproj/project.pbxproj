@@ -8,42 +8,31 @@
 
 /* Begin PBXFileReference section */
 		0E1B08AF300C00110027CC8E /* OnePlus Buds Menu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "OnePlus Buds Menu.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1000001300D000100000001 /* OnePlus Buds MenuTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "OnePlus Buds MenuTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		0E1B08C2300C02100027CC8E /* Exceptions for "OnePlus Buds Menu" folder in "OnePlus Buds Menu" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 0E1B08AE300C00110027CC8E /* OnePlus Buds Menu */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
-/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		0E1B08C3300C02100027CC8E /* Exceptions for "OnePlus Buds Menu" folder in "Compile Sources" phase from "OnePlus Buds Menu" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			buildPhase = 0E1B08AB300C00110027CC8E /* Sources */;
-			membershipExceptions = (
-				Info.plist,
-			);
-		};
-/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0E1B08B1300C00110027CC8E /* OnePlus Buds Menu */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				0E1B08C2300C02100027CC8E /* Exceptions for "OnePlus Buds Menu" folder in "OnePlus Buds Menu" target */,
-				0E1B08C3300C02100027CC8E /* Exceptions for "OnePlus Buds Menu" folder in "Compile Sources" phase from "OnePlus Buds Menu" target */,
-			);
 			path = "OnePlus Buds Menu";
+			sourceTree = "<group>";
+		};
+		A1000002300D000100000001 /* OnePlus Buds MenuTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "OnePlus Buds MenuTests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		0E1B08AC300C00110027CC8E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1000003300D000100000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -57,6 +46,7 @@
 			isa = PBXGroup;
 			children = (
 				0E1B08B1300C00110027CC8E /* OnePlus Buds Menu */,
+				A1000002300D000100000001 /* OnePlus Buds MenuTests */,
 				0E1B08B0300C00110027CC8E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -65,6 +55,7 @@
 			isa = PBXGroup;
 			children = (
 				0E1B08AF300C00110027CC8E /* OnePlus Buds Menu.app */,
+				A1000001300D000100000001 /* OnePlus Buds MenuTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -94,7 +85,48 @@
 			productReference = 0E1B08AF300C00110027CC8E /* OnePlus Buds Menu.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A1000007300D000100000001 /* OnePlus Buds MenuTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A100000C300D000100000001 /* Build configuration list for PBXNativeTarget "OnePlus Buds MenuTests" */;
+			buildPhases = (
+				A1000005300D000100000001 /* Sources */,
+				A1000003300D000100000001 /* Frameworks */,
+				A1000004300D000100000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1000009300D000100000001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A1000002300D000100000001 /* OnePlus Buds MenuTests */,
+			);
+			name = "OnePlus Buds MenuTests";
+			packageProductDependencies = (
+			);
+			productName = "OnePlus Buds MenuTests";
+			productReference = A1000001300D000100000001 /* OnePlus Buds MenuTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXContainerItemProxy section */
+		A1000008300D000100000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0E1B08A7300C00110027CC8E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0E1B08AE300C00110027CC8E;
+			remoteInfo = "OnePlus Buds Menu";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		A1000009300D000100000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0E1B08AE300C00110027CC8E /* OnePlus Buds Menu */;
+			targetProxy = A1000008300D000100000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		0E1B08A7300C00110027CC8E /* Project object */ = {
@@ -106,6 +138,10 @@
 				TargetAttributes = {
 					0E1B08AE300C00110027CC8E = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					A1000007300D000100000001 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 0E1B08AE300C00110027CC8E;
 					};
 				};
 			};
@@ -124,6 +160,7 @@
 			projectRoot = "";
 			targets = (
 				0E1B08AE300C00110027CC8E /* OnePlus Buds Menu */,
+				A1000007300D000100000001 /* OnePlus Buds MenuTests */,
 			);
 		};
 /* End PBXProject section */
@@ -136,10 +173,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1000004300D000100000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		0E1B08AB300C00110027CC8E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1000005300D000100000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -281,8 +332,8 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "OnePlus Buds Menu needs Bluetooth access to control your earbuds.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -293,11 +344,11 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "OnePlusBudsMenu.OnePlus-Buds-Menu";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 			};
@@ -308,6 +359,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -315,8 +367,8 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "OnePlus Buds Menu needs Bluetooth access to control your earbuds.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -327,13 +379,47 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "OnePlusBudsMenu.OnePlus-Buds-Menu";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A100000A300D000100000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GMXP7687M4;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "OnePlusBudsMenu.OnePlus-Buds-MenuTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OnePlus Buds Menu.app/Contents/MacOS/OnePlus Buds Menu";
+			};
+			name = Debug;
+		};
+		A100000B300D000100000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = GMXP7687M4;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "OnePlusBudsMenu.OnePlus-Buds-MenuTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OnePlus Buds Menu.app/Contents/MacOS/OnePlus Buds Menu";
 			};
 			name = Release;
 		};
@@ -354,6 +440,15 @@
 			buildConfigurations = (
 				0E1B08BB300C00120027CC8E /* Debug */,
 				0E1B08BC300C00120027CC8E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A100000C300D000100000001 /* Build configuration list for PBXNativeTarget "OnePlus Buds MenuTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A100000A300D000100000001 /* Debug */,
+				A100000B300D000100000001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -1,2 +1,0 @@
-Target dependency graph (1 target)
-Target 'OnePlus Buds Menu' in project 'OnePlus Buds Menu' (no dependencies)

@@ -1,216 +1,103 @@
-//
-//  BudsCommandController.swift
-//  OnePlus Buds Menu
-//
-//  Created by Saket Joshi on 19/07/26.
-//
-
 import Combine
 import CoreBluetooth
 import Foundation
+import OSLog
 
-enum NoiseControlMode: CaseIterable, Identifiable {
-    case noiseCancellation
-    case transparency
-    case off
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .noiseCancellation:
-            return "Noise Cancellation"
-        case .transparency:
-            return "Transparency"
-        case .off:
-            return "Off"
-        }
-    }
-
-    fileprivate var modeByte: UInt8 {
-        switch self {
-        case .noiseCancellation:
-            return 0x02
-        case .transparency:
-            return 0x04
-        case .off:
-            return 0x01
-        }
-    }
-}
-
-struct BudsBatteryStatus: Equatable {
-    var left: Int?
-    var right: Int?
-    var `case`: Int?
-    var lastUpdated: Date = Date()
-
-    /// Matches the capacity-weighted total used by the reference app.
-    /// Missing components are excluded instead of being treated as empty.
-    var totalWeightedPercent: Int? {
-        let leftCapacity = 58.0
-        let rightCapacity = 58.0
-        let caseCapacity = 440.0
-
-        var chargedCapacity = 0.0
-        var knownCapacity = 0.0
-
-        if let left {
-            chargedCapacity += Double(left) / 100 * leftCapacity
-            knownCapacity += leftCapacity
-        }
-        if let right {
-            chargedCapacity += Double(right) / 100 * rightCapacity
-            knownCapacity += rightCapacity
-        }
-        if let `case` {
-            chargedCapacity += Double(`case`) / 100 * caseCapacity
-            knownCapacity += caseCapacity
-        }
-
-        guard knownCapacity > 0 else { return nil }
-        return Int((chargedCapacity / knownCapacity * 100).rounded(.toNearestOrAwayFromZero))
-    }
-}
-
+@MainActor
 final class BudsCommandController: NSObject, ObservableObject {
-    @Published var status: String = "Ready"
-    @Published var selectedMode: NoiseControlMode = .off
-    @Published var isConnectionEnabled: Bool = true
-    @Published var isConnected: Bool = false
-    @Published var isConnecting: Bool = false
-    @Published var isCommandReady: Bool = false
-    @Published var deviceName: String?
+    @Published private(set) var phase: BudsConnectionPhase = .disabled
+    @Published private(set) var selectedMode: NoiseControlMode = .off
+    @Published private(set) var isConnectionEnabled = true
+    @Published private(set) var deviceName: String?
     @Published private(set) var battery: BudsBatteryStatus?
     @Published private(set) var pendingMode: NoiseControlMode?
 
-    var isChangingNoiseControl: Bool {
-        pendingMode != nil
+    var isCommandReady: Bool { phase == .ready }
+    var isConnected: Bool { peripheral?.state == .connected }
+    var isChangingNoiseControl: Bool { pendingMode != nil }
+    var connectionAccessibilityStatus: String { phase.statusText }
+    var canRetry: Bool {
+        if case .failed = phase { return isConnectionEnabled }
+        return false
     }
 
-    private let service079A = CBUUID(string: "0000079A-D102-11E1-9B23-00025B00A5A5")
-    private let write079AUUID = "0100079A-D102-11E1-9B23-00025B00A5A5"
-    private let notify079AUUID = "0200079A-D102-11E1-9B23-00025B00A5A5"
-    private let fe2cCommandUUID = "FE2C123A-8366-4814-8EB0-01DE32100BEA"
+    var displayBattery: BudsBatteryStatus? {
+        guard var current = battery else { return nil }
+        guard current.case == nil, let cached = batteryCache.currentCaseBattery() else { return current }
+        current.case = cached.percentage
+        return current
+    }
+
+    private let serviceUUID = CBUUID(string: "0000079A-D102-11E1-9B23-00025B00A5A5")
+    private let writeUUID = CBUUID(string: "0100079A-D102-11E1-9B23-00025B00A5A5")
+    private let notifyUUID = CBUUID(string: "0200079A-D102-11E1-9B23-00025B00A5A5")
+    private let persistedPeripheralKey = "buds.peripheralIdentifier"
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "OnePlusBudsMenu", category: "Bluetooth")
+    private let batteryCache: BatteryCache
+    private let defaults: UserDefaults
 
     private var central: CBCentralManager?
     private var peripheral: CBPeripheral?
-    private var write079A: CBCharacteristic?
-    private var notify079A: CBCharacteristic?
-    private var fe2cCommand: CBCharacteristic?
-    private var commandSequenceID = 0
-    private var hasStartedProtocolSetup = false
+    private var writeCharacteristic: CBCharacteristic?
+    private var notifyCharacteristic: CBCharacteristic?
+    private var queuedWrites: [(data: Data, name: String)] = []
+    private var writeInFlight = false
+    private var operationGeneration = 0
+    private var retryAttempt = 0
+    private var didTryPersistedPeripheral = false
+    private var timeoutWorkItem: DispatchWorkItem?
+    private var retryWorkItem: DispatchWorkItem?
     private var lastBatteryQueryAt: Date?
 
-    private static let caseBatteryPercentKey = "buds.caseBatteryPercent"
-    private static let caseBatteryTimestampKey = "buds.caseBatteryTimestamp"
-    private static let caseBatteryMaxAge: TimeInterval = 12 * 60 * 60
+    private let reconnectPolicy = ReconnectPolicy()
 
-    private let helloPacket: [UInt8] = [
-        0xAA, 0x07, 0x00, 0x00, 0x00, 0x01, 0x23, 0x00, 0x00, 0x12
-    ]
-    private let registrationPacket: [UInt8] = [
-        0xAA, 0x0C, 0x00, 0x00, 0x00, 0x85, 0x41, 0x05, 0x00, 0x00, 0xB5, 0x50, 0xA0, 0x69
-    ]
-    private let noiseControlQueryPacket: [UInt8] = [
-        0xAA, 0x09, 0x00, 0x00, 0x04, 0x82, 0x44, 0x02, 0x00, 0x00, 0xF2
-    ]
-    private let batteryQueryPacket: [UInt8] = [
-        0xAA, 0x07, 0x00, 0x00, 0x06, 0x01, 0x25, 0x00, 0x00
-    ]
-
-    override init() {
+    init(batteryCache: BatteryCache? = nil, defaults: UserDefaults? = nil) {
+        self.batteryCache = batteryCache ?? BatteryCache()
+        self.defaults = defaults ?? .standard
         super.init()
         connect()
     }
 
-    var connectionAccessibilityStatus: String {
-        if isCommandReady {
-            return "Connected"
-        }
-
-        if isConnecting {
-            return status
-        }
-
-        if isConnected {
-            return "Preparing controls"
-        }
-
-        return "Disconnected"
-    }
-
-    /// Uses the most recent case reading when the buds cannot currently query
-    /// the case (a common result while the buds are out and the lid is closed).
-    var displayBattery: BudsBatteryStatus? {
-        guard var current = battery else { return nil }
-        guard current.case == nil else { return current }
-        guard
-            let cachedCase = UserDefaults.standard.object(forKey: Self.caseBatteryPercentKey) as? Int,
-            let cachedAt = UserDefaults.standard.object(forKey: Self.caseBatteryTimestampKey) as? Date,
-            Date().timeIntervalSince(cachedAt) <= Self.caseBatteryMaxAge
-        else {
-            return current
-        }
-
-        current.case = cachedCase
-        return current
-    }
-
     func select(_ mode: NoiseControlMode) {
-        guard isCommandReady else {
-            status = "Preparing controls..."
-            return
-        }
+        guard isCommandReady else { return }
 
-        let sequenceID = nextCommandSequenceID()
+        let generation = nextGeneration()
         let previousMode = selectedMode
-        // Make the control reflect the user's current choice immediately. The
-        // earbuds' acknowledgement can arrive later (or be omitted by some
-        // firmware versions), but it should not leave the previous option
-        // visually selected in the meantime.
         selectedMode = mode
         pendingMode = mode
-        status = "Changing noise control..."
 
-        guard sendPacket(
-            [0xAA, 0x0A, 0x00, 0x00, 0x04, 0x04, 0x42, 0x03, 0x00, 0x01, 0x01, mode.modeByte],
-            name: "ANC_SET"
-        ) else {
+        guard enqueue(BudsProtocolCodec.noiseControlCommand(mode), name: "ANC_SET") else {
             selectedMode = previousMode
             pendingMode = nil
-            status = "Control unavailable"
+            phase = .failed("Noise control is unavailable")
             return
         }
 
-        // Firmware normally acknowledges with command 0x8404. If it does not,
-        // query the actual mode before deciding whether the change succeeded.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { [weak self] in
-            guard let self else { return }
-            guard sequenceID == self.commandSequenceID, self.pendingMode == mode else { return }
-            print("[RX] ANC acknowledgement delayed; querying current mode")
-            self.sendPacket(self.noiseControlQueryPacket, name: "ANC_QUERY_FALLBACK")
+        schedule(after: 0.75, generation: generation) { controller in
+            guard controller.pendingMode == mode else { return }
+            _ = controller.enqueue(BudsProtocolCodec.noiseControlQuery, name: "ANC_QUERY_CONFIRMATION")
         }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-            guard let self else { return }
-            guard sequenceID == self.commandSequenceID, self.pendingMode == mode else { return }
-            self.pendingMode = nil
-            self.status = "Earbuds did not respond"
+        schedule(after: 2.5, generation: generation) { controller in
+            guard controller.pendingMode == mode else { return }
+            controller.selectedMode = previousMode
+            controller.pendingMode = nil
+            controller.phase = .failed("Earbuds did not confirm the change")
         }
     }
 
     func toggleConnection() {
-        if isConnectionEnabled {
-            disconnect()
-        } else {
-            connect()
-        }
+        isConnectionEnabled ? disconnect() : connect()
+    }
+
+    func retry() {
+        guard isConnectionEnabled else { return }
+        retryAttempt = 0
+        didTryPersistedPeripheral = false
+        startConnectionIfPossible()
     }
 
     func refreshBatteryIfNeeded(force: Bool = false) {
         guard isCommandReady else { return }
-
         let now = Date()
         if !force, let lastUpdated = battery?.lastUpdated,
            now.timeIntervalSince(lastUpdated) < 5 * 60 {
@@ -220,270 +107,189 @@ final class BudsCommandController: NSObject, ObservableObject {
             return
         }
 
+        guard enqueue(BudsProtocolCodec.batteryQuery, name: "BATTERY_QUERY") else { return }
         lastBatteryQueryAt = now
-        _ = sendPacket(batteryQueryPacket, name: "BATTERY_QUERY")
     }
 
     func connect() {
         isConnectionEnabled = true
-        status = "Connecting..."
-        isConnecting = true
-        isCommandReady = false
-
+        retryAttempt = 0
+        didTryPersistedPeripheral = false
         if central == nil {
+            phase = .waitingForBluetooth("Checking Bluetooth…")
             central = CBCentralManager(delegate: self, queue: .main)
-        } else if central?.state == .poweredOn {
-            startConnection()
+        } else {
+            startConnectionIfPossible()
         }
     }
 
     func disconnect() {
         isConnectionEnabled = false
-        status = "Disconnected"
-        isConnected = false
-        isConnecting = false
-        isCommandReady = false
-        invalidateCommandSequences()
-
+        cancelScheduledWork()
+        invalidateOperations()
+        central?.stopScan()
         if let peripheral {
             central?.cancelPeripheralConnection(peripheral)
         }
-
-        central?.stopScan()
-        peripheral = nil
-        write079A = nil
-        notify079A = nil
-        fe2cCommand = nil
-        hasStartedProtocolSetup = false
-        lastBatteryQueryAt = nil
+        resetPeripheralState(clearDeviceName: false)
+        phase = .disabled
     }
 
-    private func startConnection() {
-        guard let central else { return }
+    private func startConnectionIfPossible() {
+        guard isConnectionEnabled, let central else { return }
+        cancelScheduledWork()
+        invalidateOperations()
 
-        let connected = central.retrieveConnectedPeripherals(withServices: [service079A])
-        if let buds = connected.first {
-            attachAndConnect(buds)
+        switch central.state {
+        case .poweredOn:
+            startConnection(using: central)
+        case .poweredOff:
+            phase = .waitingForBluetooth("Bluetooth is turned off")
+        case .unauthorized:
+            phase = .failed("Bluetooth access is not allowed")
+        case .unsupported:
+            phase = .failed("Bluetooth is not supported on this Mac")
+        case .resetting:
+            phase = .waitingForBluetooth("Bluetooth is restarting…")
+        case .unknown:
+            phase = .waitingForBluetooth("Checking Bluetooth…")
+        @unknown default:
+            phase = .failed("Bluetooth is unavailable")
+        }
+    }
+
+    private func startConnection(using central: CBCentralManager) {
+        central.stopScan()
+        resetPeripheralState(clearDeviceName: false)
+
+        if !didTryPersistedPeripheral,
+           let storedID = defaults.string(forKey: persistedPeripheralKey),
+           let identifier = UUID(uuidString: storedID),
+           let savedPeripheral = central.retrievePeripherals(withIdentifiers: [identifier]).first {
+            didTryPersistedPeripheral = true
+            attachAndConnect(savedPeripheral)
             return
         }
 
-        status = "Scanning..."
-        central.scanForPeripherals(withServices: nil, options: nil)
+        if let connected = central.retrieveConnectedPeripherals(withServices: [serviceUUID]).first {
+            attachAndConnect(connected)
+            return
+        }
+
+        phase = .scanning
+        central.scanForPeripherals(withServices: [serviceUUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+        setTimeout(after: 12, message: "No compatible earbuds were found", shouldRetry: true)
     }
 
-    private func attachAndConnect(_ buds: CBPeripheral) {
-        invalidateCommandSequences()
-        peripheral = buds
-        buds.delegate = self
-        deviceName = buds.name ?? deviceName
-        status = "Connecting..."
-        isCommandReady = false
-        hasStartedProtocolSetup = false
-        battery = nil
-        lastBatteryQueryAt = nil
-        central?.connect(buds, options: nil)
-    }
-
-    @discardableResult
-    private func sendPacket(_ bytes: [UInt8], name: String) -> Bool {
-        guard isConnected, let peripheral, let write079A else { return false }
-
-        let hex = bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
-        print("[TX] \(name): \(hex)")
-        peripheral.writeValue(Data(bytes), for: write079A, type: .withoutResponse)
-        return true
-    }
-
-    @discardableResult
-    private func sendPacketIfCurrent(_ bytes: [UInt8], name: String, sequenceID: Int) -> Bool {
-        guard sequenceID == commandSequenceID else { return false }
-        return sendPacket(bytes, name: name)
-    }
-
-    @discardableResult
-    private func nextCommandSequenceID() -> Int {
-        commandSequenceID += 1
-        return commandSequenceID
-    }
-
-    private func invalidateCommandSequences() {
-        commandSequenceID += 1
-        pendingMode = nil
+    private func attachAndConnect(_ candidate: CBPeripheral) {
+        guard let central else { return }
+        cancelTimeout()
+        central.stopScan()
+        peripheral = candidate
+        candidate.delegate = self
+        deviceName = candidate.name ?? deviceName
+        phase = .connecting
+        central.connect(candidate, options: nil)
+        setTimeout(after: 10, message: "Connection timed out", shouldRetry: true)
     }
 
     private func beginProtocolSetup() {
-        guard !hasStartedProtocolSetup, write079A != nil else { return }
-
-        hasStartedProtocolSetup = true
-        isCommandReady = false
-        status = "Preparing controls..."
-        let sequenceID = nextCommandSequenceID()
-
-        sendPacket(helloPacket, name: "HELLO")
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            guard let self else { return }
-            self.sendPacketIfCurrent(
-                self.registrationPacket,
-                name: "REGISTER",
-                sequenceID: sequenceID
-            )
+        guard notifyCharacteristic?.isNotifying == true else { return }
+        phase = .registering
+        let generation = nextGeneration()
+        guard enqueue(BudsProtocolCodec.hello, name: "HELLO") else {
+            fail("The earbuds do not support commands", shouldRetry: false)
+            return
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
-            guard let self, sequenceID == self.commandSequenceID else { return }
-            self.sendPacket(self.noiseControlQueryPacket, name: "ANC_QUERY")
-            self.isCommandReady = true
-            self.status = "Ready"
-
-            // Give the ANC query its own response window, then request battery
-            // once. Future menu opens only refresh stale values.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-                guard let self, sequenceID == self.commandSequenceID else { return }
-                self.refreshBatteryIfNeeded(force: true)
+        schedule(after: 0.6, generation: generation) { controller in
+            _ = controller.enqueue(BudsProtocolCodec.registration, name: "REGISTER")
+        }
+        for delay in [1.2, 2.4, 3.6] {
+            schedule(after: delay, generation: generation) { controller in
+                guard controller.phase == .registering else { return }
+                _ = controller.enqueue(BudsProtocolCodec.noiseControlQuery, name: "ANC_QUERY")
             }
         }
+        setTimeout(after: 5, message: "The earbuds did not complete setup", shouldRetry: true)
     }
 
-    private func finishModeChange(_ mode: NoiseControlMode) {
+    private func markReady(mode: NoiseControlMode) {
+        cancelTimeout()
+        retryAttempt = 0
         selectedMode = mode
         pendingMode = nil
-        status = "Ready"
+        phase = .ready
+        if let identifier = peripheral?.identifier.uuidString {
+            defaults.set(identifier, forKey: persistedPeripheralKey)
+        }
+        refreshBatteryIfNeeded(force: true)
     }
 
-    private func reportedNoiseControlMode(from bytes: [UInt8]) -> NoiseControlMode? {
-        guard bytes.count >= 12, bytes[4] == 0x04 else { return nil }
-        guard [0x02, 0x82, 0x84].contains(bytes[5]) else { return nil }
-        guard bytes[9] == 0x01, bytes[10] == 0x01 else { return nil }
-
-        return NoiseControlMode.allCases.first { $0.modeByte == bytes[11] }
+    @discardableResult
+    private func enqueue(_ data: Data, name: String) -> Bool {
+        guard peripheral?.state == .connected, writeCharacteristic != nil else { return false }
+        queuedWrites.append((data, name))
+        drainWriteQueue()
+        return true
     }
 
-    private func batteryStatus(from bytes: [UInt8]) -> BudsBatteryStatus? {
-        guard bytes.count >= 12, bytes.first == 0xAA else { return nil }
-        guard bytes[4] == 0x06, bytes[5] == 0x81, bytes[6] == 0x25 else { return nil }
+    private func drainWriteQueue() {
+        guard
+            !queuedWrites.isEmpty,
+            !writeInFlight,
+            let peripheral,
+            peripheral.state == .connected,
+            let characteristic = writeCharacteristic
+        else { return }
 
-        let pairCount = Int(bytes[10])
-        let start = 11
-        let requiredCount = start + pairCount * 2
+        let supportsWithoutResponse = characteristic.properties.contains(.writeWithoutResponse)
+        let supportsResponse = characteristic.properties.contains(.write)
+        guard supportsWithoutResponse || supportsResponse else {
+            fail("The command characteristic is not writable", shouldRetry: false)
+            return
+        }
 
-        if pairCount > 0, bytes.count >= requiredCount {
-            var left: Int?
-            var right: Int?
-            var casePercent: Int?
-            var sawCasePair = false
+        let writeType: CBCharacteristicWriteType = supportsWithoutResponse ? .withoutResponse : .withResponse
+        let maximumLength = peripheral.maximumWriteValueLength(for: writeType)
+        guard queuedWrites[0].data.count <= maximumLength else {
+            logger.error("Command exceeds the peripheral write limit")
+            queuedWrites.removeFirst()
+            drainWriteQueue()
+            return
+        }
 
-            var index = start
-            for _ in 0..<pairCount {
-                let identifier = bytes[index]
-                let value = Int(bytes[index + 1])
-                if (0...100).contains(value) {
-                    switch identifier {
-                    case 0x01: left = value
-                    case 0x02: right = value
-                    case 0x03:
-                        sawCasePair = true
-                        casePercent = value
-                    default: break
-                    }
-                }
-                index += 2
+        if writeType == .withoutResponse, !peripheral.canSendWriteWithoutResponse { return }
+
+        let command = queuedWrites.removeFirst()
+        logger.debug("Sending command: \(command.name, privacy: .public)")
+        writeInFlight = writeType == .withResponse
+        peripheral.writeValue(command.data, for: characteristic, type: writeType)
+        if !writeInFlight { drainWriteQueue() }
+    }
+
+    private func handle(_ event: BudsProtocolCodec.Event) {
+        switch event {
+        case .noiseControlMode(let mode):
+            if phase == .registering {
+                markReady(mode: mode)
+            } else if pendingMode == nil || pendingMode == mode {
+                selectedMode = mode
+                pendingMode = nil
+                phase = .ready
             }
-
-            if left != nil || right != nil || casePercent != nil {
-                casePercent = availableCasePercent(
-                    casePercent,
-                    wasReported: sawCasePair,
-                    left: left,
-                    right: right
-                )
-                return BudsBatteryStatus(left: left, right: right, case: casePercent)
+        case .noiseControlAcknowledged:
+            if let pendingMode {
+                selectedMode = pendingMode
+                self.pendingMode = nil
+                phase = .ready
             }
+        case .battery(let value, let isTelemetry):
+            updateBattery(value, fromTelemetry: isTelemetry)
         }
-
-        // Older firmware can return fixed-position battery fields instead of
-        // the ID/value table above.
-        if bytes.count >= 16 {
-            let left = Int(bytes[12])
-            let right = Int(bytes[14])
-            let casePercent = Int(bytes[15])
-            guard [left, right, casePercent].allSatisfy({ (0...100).contains($0) }) else { return nil }
-            return BudsBatteryStatus(
-                left: left,
-                right: right,
-                case: availableCasePercent(casePercent, wasReported: true, left: left, right: right)
-            )
-        }
-
-        if bytes.count >= 14 {
-            let left = Int(bytes[12])
-            let casePercent = Int(bytes[13])
-            guard [left, casePercent].allSatisfy({ (0...100).contains($0) }) else { return nil }
-            return BudsBatteryStatus(
-                left: left,
-                right: left,
-                case: availableCasePercent(casePercent, wasReported: true, left: left, right: left)
-            )
-        }
-
-        return nil
     }
 
-    private func batteryTelemetryStatus(from bytes: [UInt8]) -> BudsBatteryStatus? {
-        guard bytes.count >= 17, bytes.first == 0xAA else { return nil }
-        guard bytes[4] == 0x04, bytes[5] == 0x02 else { return nil }
-        guard bytes[7] == 0x08, bytes[8] == 0x00, bytes[9] == 0x01 else { return nil }
-
-        let pairCount = Int(bytes[10])
-        guard (1...3).contains(pairCount) else { return nil }
-
-        let start = 11
-        guard bytes.count >= start + pairCount * 2 else { return nil }
-
-        var left: Int?
-        var right: Int?
-        var casePercent: Int?
-        var sawCasePair = false
-        var index = start
-
-        for _ in 0..<pairCount {
-            let identifier = bytes[index]
-            let value = Int(bytes[index + 1])
-            guard (0...100).contains(value) else { return nil }
-
-            switch identifier {
-            case 0x01: left = value
-            case 0x02: right = value
-            case 0x03:
-                sawCasePair = true
-                casePercent = value
-            default: return nil
-            }
-            index += 2
-        }
-
-        casePercent = availableCasePercent(
-            casePercent,
-            wasReported: sawCasePair,
-            left: left,
-            right: right
-        )
-        return BudsBatteryStatus(left: left, right: right, case: casePercent)
-    }
-
-    private func availableCasePercent(
-        _ casePercent: Int?,
-        wasReported: Bool,
-        left: Int?,
-        right: Int?
-    ) -> Int? {
-        if wasReported, casePercent == 0, (left ?? 0) > 5 || (right ?? 0) > 5 {
-            return nil
-        }
-        return casePercent
-    }
-
-    private func updateBattery(_ newValue: BudsBatteryStatus, fromTelemetry: Bool = false) {
+    private func updateBattery(_ newValue: BudsBatteryStatus, fromTelemetry: Bool) {
         if fromTelemetry, let current = battery {
             if let old = current.left, let new = newValue.left, abs(old - new) > 30 { return }
             if let old = current.right, let new = newValue.right, abs(old - new) > 30 { return }
@@ -498,39 +304,96 @@ final class BudsCommandController: NSObject, ObservableObject {
         }
         merged.lastUpdated = Date()
         battery = merged
-
-        if let casePercent = merged.case {
-            UserDefaults.standard.set(casePercent, forKey: Self.caseBatteryPercentKey)
-            UserDefaults.standard.set(Date(), forKey: Self.caseBatteryTimestampKey)
+        if let casePercentage = merged.case {
+            batteryCache.store(casePercentage: casePercentage)
         }
+    }
+
+    private func fail(_ message: String, shouldRetry: Bool) {
+        cancelTimeout()
+        invalidateOperations()
+        central?.stopScan()
+        phase = .failed(message)
+        logger.error("Bluetooth session failed: \(message, privacy: .public)")
+        if let peripheral, peripheral.state != .disconnected {
+            central?.cancelPeripheralConnection(peripheral)
+        }
+        if shouldRetry { scheduleReconnect() }
+    }
+
+    private func scheduleReconnect() {
+        guard isConnectionEnabled, let delay = reconnectPolicy.delay(forAttempt: retryAttempt) else { return }
+        guard retryWorkItem == nil else { return }
+        retryAttempt += 1
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, self.isConnectionEnabled else { return }
+            self.startConnectionIfPossible()
+        }
+        retryWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    private func setTimeout(after delay: TimeInterval, message: String, shouldRetry: Bool) {
+        cancelTimeout()
+        let generation = operationGeneration
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, generation == self.operationGeneration else { return }
+            self.fail(message, shouldRetry: shouldRetry)
+        }
+        timeoutWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    private func schedule(
+        after delay: TimeInterval,
+        generation: Int,
+        action: @escaping @MainActor (BudsCommandController) -> Void
+    ) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, generation == self.operationGeneration else { return }
+            action(self)
+        }
+    }
+
+    @discardableResult
+    private func nextGeneration() -> Int {
+        operationGeneration += 1
+        return operationGeneration
+    }
+
+    private func invalidateOperations() {
+        operationGeneration += 1
+        pendingMode = nil
+    }
+
+    private func cancelTimeout() {
+        timeoutWorkItem?.cancel()
+        timeoutWorkItem = nil
+    }
+
+    private func cancelScheduledWork() {
+        cancelTimeout()
+        retryWorkItem?.cancel()
+        retryWorkItem = nil
+    }
+
+    private func resetPeripheralState(clearDeviceName: Bool) {
+        peripheral?.delegate = nil
+        peripheral = nil
+        writeCharacteristic = nil
+        notifyCharacteristic = nil
+        queuedWrites.removeAll()
+        writeInFlight = false
+        lastBatteryQueryAt = nil
+        battery = nil
+        if clearDeviceName { deviceName = nil }
     }
 }
 
 extension BudsCommandController: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        guard isConnectionEnabled || isConnecting else { return }
-
-        switch central.state {
-        case .poweredOn:
-            startConnection()
-        case .poweredOff:
-            status = "Bluetooth off"
-            isConnecting = false
-        case .unauthorized:
-            status = "Bluetooth unauthorized"
-            isConnecting = false
-        case .unsupported:
-            status = "Bluetooth unsupported"
-            isConnecting = false
-        case .resetting:
-            status = "Bluetooth resetting..."
-        case .unknown:
-            status = "Bluetooth unavailable"
-            isConnecting = false
-        @unknown default:
-            status = "Bluetooth unavailable"
-            isConnecting = false
-        }
+        guard isConnectionEnabled else { return }
+        startConnectionIfPossible()
     }
 
     func centralManager(
@@ -539,111 +402,120 @@ extension BudsCommandController: CBCentralManagerDelegate {
         advertisementData: [String: Any],
         rssi RSSI: NSNumber
     ) {
-        guard let name = peripheral.name ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String else { return }
-        guard name.contains("Nord Buds") || name.contains("OnePlus") else { return }
-
-        central.stopScan()
+        let name = peripheral.name ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String
+        guard let name, name.localizedCaseInsensitiveContains("OnePlus") || name.localizedCaseInsensitiveContains("Nord Buds") else {
+            return
+        }
         attachAndConnect(peripheral)
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        isConnected = true
-        isConnecting = false
-        isCommandReady = false
+        cancelTimeout()
         deviceName = peripheral.name ?? deviceName
-        status = "Discovering..."
-        peripheral.discoverServices(nil)
+        phase = .discovering
+        peripheral.discoverServices([serviceUUID])
+        setTimeout(after: 8, message: "The earbuds did not expose their controls", shouldRetry: true)
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        isConnected = false
-        isConnecting = false
-        isCommandReady = false
-        invalidateCommandSequences()
-        write079A = nil
-        notify079A = nil
-        fe2cCommand = nil
-        hasStartedProtocolSetup = false
-        lastBatteryQueryAt = nil
-        status = "Disconnected"
-
-        if isConnectionEnabled {
-            startConnection()
+        let message = error?.localizedDescription ?? "The earbuds disconnected"
+        resetPeripheralState(clearDeviceName: false)
+        guard isConnectionEnabled else {
+            phase = .disabled
+            return
         }
+        fail(message, shouldRetry: true)
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        isConnected = false
-        isConnecting = false
-        isCommandReady = false
-        status = error?.localizedDescription ?? "Connection failed"
+        resetPeripheralState(clearDeviceName: false)
+        fail(error?.localizedDescription ?? "Could not connect to the earbuds", shouldRetry: true)
     }
 }
 
 extension BudsCommandController: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        for service in peripheral.services ?? [] {
-            peripheral.discoverCharacteristics(nil, for: service)
+        if let error {
+            fail("Service discovery failed: \(error.localizedDescription)", shouldRetry: true)
+            return
         }
+        guard let service = peripheral.services?.first(where: { $0.uuid == serviceUUID }) else {
+            fail("This device is not compatible", shouldRetry: false)
+            return
+        }
+        peripheral.discoverCharacteristics([writeUUID, notifyUUID], for: service)
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        if let error {
+            fail("Control discovery failed: \(error.localizedDescription)", shouldRetry: true)
+            return
+        }
         for characteristic in service.characteristics ?? [] {
-            let uuid = characteristic.uuid.uuidString.uppercased()
-            let props = characteristic.properties
-
-            if uuid == write079AUUID {
-                write079A = characteristic
-            }
-
-            if uuid == notify079AUUID {
-                notify079A = characteristic
-                peripheral.setNotifyValue(true, for: characteristic)
-            }
-
-            if uuid == fe2cCommandUUID {
-                fe2cCommand = characteristic
-                peripheral.setNotifyValue(true, for: characteristic)
-            }
-
-            if props.contains(.notify) || props.contains(.indicate) {
-                peripheral.setNotifyValue(true, for: characteristic)
-            }
-
-            if props.contains(.read) {
-                peripheral.readValue(for: characteristic)
+            switch characteristic.uuid {
+            case writeUUID: writeCharacteristic = characteristic
+            case notifyUUID: notifyCharacteristic = characteristic
+            default: break
             }
         }
 
+        guard let writeCharacteristic, let notifyCharacteristic else {
+            fail("Required controls are missing on this device", shouldRetry: false)
+            return
+        }
+        guard writeCharacteristic.properties.contains(.writeWithoutResponse) || writeCharacteristic.properties.contains(.write) else {
+            fail("The device control is not writable", shouldRetry: false)
+            return
+        }
+        guard notifyCharacteristic.properties.contains(.notify) || notifyCharacteristic.properties.contains(.indicate) else {
+            fail("The device cannot report control changes", shouldRetry: false)
+            return
+        }
+
+        phase = .subscribing
+        peripheral.setNotifyValue(true, for: notifyCharacteristic)
+        setTimeout(after: 5, message: "Could not enable earbud notifications", shouldRetry: true)
+    }
+
+    func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
+        guard characteristic.uuid == notifyUUID else { return }
+        if let error {
+            fail("Notification setup failed: \(error.localizedDescription)", shouldRetry: true)
+            return
+        }
+        guard characteristic.isNotifying else {
+            fail("Earbud notifications are unavailable", shouldRetry: true)
+            return
+        }
+        cancelTimeout()
         beginProtocolSetup()
     }
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        guard let data = characteristic.value else { return }
-
-        let bytes = [UInt8](data)
-        let hex = bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
-        print("[RX] \(characteristic.uuid.uuidString): \(hex)")
-
-        if let battery = batteryStatus(from: bytes) {
-            updateBattery(battery)
+        guard characteristic.uuid == notifyUUID else { return }
+        if let error {
+            logger.error("Notification read failed: \(error.localizedDescription, privacy: .public)")
             return
         }
-
-        if let battery = batteryTelemetryStatus(from: bytes) {
-            updateBattery(battery, fromTelemetry: true)
+        guard let data = characteristic.value else { return }
+        let events = BudsProtocolCodec.decode(data)
+        if events.isEmpty {
+            logger.debug("Ignored an unrecognized earbud packet")
         }
+        events.forEach(handle)
+    }
 
-        if let reportedMode = reportedNoiseControlMode(from: bytes) {
-            if pendingMode == nil || pendingMode == reportedMode {
-                finishModeChange(reportedMode)
-            }
+    func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
+        guard characteristic.uuid == writeUUID else { return }
+        writeInFlight = false
+        if let error {
+            fail("A command could not be sent: \(error.localizedDescription)", shouldRetry: true)
+            return
         }
+        drainWriteQueue()
+    }
 
-        if bytes.count >= 6, bytes[4] == 0x04, bytes[5] == 0x84,
-           let pendingMode {
-            print("[RX] Noise control acknowledged")
-            finishModeChange(pendingMode)
-        }
+    func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {
+        drainWriteQueue()
     }
 }

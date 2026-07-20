@@ -27,30 +27,54 @@ open "OnePlus Buds Menu.xcodeproj"
 
 Then select the `OnePlus Buds Menu` scheme and run the app.
 
-You can also build a release app from the command line:
+You can also build an unsigned Release app locally from the command line:
 
 ```sh
 xcodebuild \
   -project "OnePlus Buds Menu.xcodeproj" \
   -scheme "OnePlus Buds Menu" \
   -configuration Release \
-  -derivedDataPath DerivedData-DMG \
+  -destination "generic/platform=macOS" \
+  -derivedDataPath Build/DerivedData \
+  CODE_SIGNING_ALLOWED=NO \
   build
 ```
 
-## Package A DMG
-
-After building the Release app, create the installer DMG:
+## Run Tests
 
 ```sh
-Packaging/DMG/create-dmg.sh
+xcodebuild test \
+  -project "OnePlus Buds Menu.xcodeproj" \
+  -scheme "OnePlus Buds Menu" \
+  -destination "platform=macOS"
 ```
 
-The generated DMG is written to:
+## Create A GitHub Release DMG
+
+Public downloads should be Developer ID signed and notarized. First store
+notarization credentials in the Keychain:
+
+```sh
+xcrun notarytool store-credentials "OnePlusBudsMenu-Notary"
+```
+
+Then run:
+
+```sh
+DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)" \
+NOTARY_KEYCHAIN_PROFILE="OnePlusBudsMenu-Notary" \
+Packaging/release.sh
+```
+
+The notarized DMG and SHA-256 checksum are written to:
 
 ```text
 Artifacts/OnePlus-Buds-Menu.dmg
+Artifacts/OnePlus-Buds-Menu.dmg.sha256
 ```
+
+Upload both files to a GitHub Release. Do not commit generated apps, Derived
+Data, staging folders, or DMGs to the source tree.
 
 ## Notes
 

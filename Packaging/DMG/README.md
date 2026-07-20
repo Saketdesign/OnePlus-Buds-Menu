@@ -26,3 +26,8 @@ Or pass a specific app bundle:
 ```sh
 Packaging/DMG/create-dmg.sh "/path/to/OnePlus Buds Menu.app"
 ```
+
+`create-dmg.sh` only creates the disk image. For a publishable GitHub Release,
+use `Packaging/release.sh` from the repository root. It archives a universal
+Release build, verifies the app signature and entitlements, signs and notarizes
+the DMG, staples the ticket, runs Gatekeeper checks, and writes a SHA-256 file.

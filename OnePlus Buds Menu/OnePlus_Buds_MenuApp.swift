@@ -58,9 +58,39 @@ private struct BudsPanelView: View {
                         get: { controller.isConnectionEnabled },
                         set: { _ in controller.toggleConnection() }
                     ),
-                    status: controller.connectionAccessibilityStatus
+                    label: "Earbuds connection",
+                    status: controller.connectionAccessibilityStatus,
+                    enabledHelp: "Disconnect earbuds",
+                    disabledHelp: "Connect earbuds"
                 )
             }
+
+            HStack(spacing: 7) {
+                Circle()
+                    .fill(connectionStatusColor)
+                    .frame(width: 6, height: 6)
+                    .accessibilityHidden(true)
+
+                Text(controller.phase.statusText)
+                    .font(.caption)
+                    .foregroundStyle(Color.paperSecondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if controller.phase.isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel(controller.phase.statusText)
+                } else if controller.canRetry {
+                    Button("Retry") {
+                        controller.retry()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(Color.paperSelected)
+                    .accessibilityHint("Attempts to reconnect to the earbuds")
+                }
+            }
+            .accessibilityElement(children: .combine)
 
             PaperDivider()
 
@@ -106,35 +136,37 @@ private struct BudsPanelView: View {
                     )
                 }
 
-                PaperDivider()
+            }
 
-                Button {
-                    withAnimation(standardSpring) {
-                        isSettingsExpanded.toggle()
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        Text("Settings")
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundStyle(.paperSecondaryTextGradient)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(.paperSecondaryTextGradient)
-                            .rotationEffect(.degrees(isSettingsExpanded ? 0 : -90))
-                            .animation(standardSpring, value: isSettingsExpanded)
-                    }
-                    .contentShape(Rectangle())
+            Button {
+                withAnimation(standardSpring) {
+                    isSettingsExpanded.toggle()
                 }
-                .buttonStyle(.plain)
-                .help(isSettingsExpanded ? "Hide settings" : "Show settings")
+            } label: {
+                HStack(spacing: 8) {
+                    Text("Settings")
+                        .font(.caption)
+                        .foregroundStyle(Color.paperSecondaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                if isSettingsExpanded {
+                    Image(systemName: "chevron.down")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(Color.paperSecondaryText)
+                        .rotationEffect(.degrees(isSettingsExpanded ? 0 : -90))
+                        .animation(standardSpring, value: isSettingsExpanded)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(isSettingsExpanded ? "Hide settings" : "Show settings")
+            .accessibilityValue(isSettingsExpanded ? "Expanded" : "Collapsed")
+
+            if isSettingsExpanded {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .center, spacing: 12) {
                         Text("Launch on login")
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundStyle(.paperSecondaryTextGradient)
+                            .font(.caption)
+                            .foregroundStyle(Color.paperSecondaryText)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         PaperToggle(
@@ -142,16 +174,32 @@ private struct BudsPanelView: View {
                                 get: { launchAtLogin.isEnabled },
                                 set: { launchAtLogin.setEnabled($0) }
                             ),
-                            status: launchAtLogin.accessibilityStatus
+                            label: "Launch on login",
+                            status: launchAtLogin.accessibilityStatus,
+                            enabledHelp: "Disable launch on login",
+                            disabledHelp: "Enable launch on login"
                         )
                     }
-                    .frame(height: 16)
-                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
-                    .help(launchAtLogin.errorMessage ?? "Open OnePlus Buds Menu automatically when you sign in")
-                }
 
-                PaperDivider()
+                    if launchAtLogin.needsSystemApproval {
+                        Button("Open Login Items Settings") {
+                            launchAtLogin.openSystemSettings()
+                        }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                    }
+
+                    if let errorMessage = launchAtLogin.errorMessage {
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .accessibilityLabel("Launch on login error: \(errorMessage)")
+                    }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
             }
+
+            PaperDivider()
 
             Button {
                 NSApplication.shared.terminate(nil)
@@ -186,7 +234,7 @@ private struct BudsPanelView: View {
     }
 
     private var deviceTitle: String {
-        controller.deviceName ?? "Saket's oneplus buds 4"
+        controller.deviceName ?? "OnePlus Buds"
     }
 
     private var headerTitle: String {
@@ -207,15 +255,29 @@ private struct BudsPanelView: View {
         reduceMotion ? .easeOut(duration: 0.18) : .spring(response: 0.36, dampingFraction: 0.82)
     }
 
+    private var connectionStatusColor: Color {
+        switch controller.phase {
+        case .ready:
+            .green
+        case .failed:
+            .red
+        case .disabled, .waitingForBluetooth:
+            Color.paperInactiveIcon
+        default:
+            Color.paperSelected
+        }
+    }
+
 }
 
 @MainActor
 private final class LaunchAtLoginController: ObservableObject {
     @Published private(set) var isEnabled: Bool
-    @Published private(set) var errorMessage: String?
+    @Published private(set) var errorMessage: String? = nil
 
     init() {
-        isEnabled = SMAppService.mainApp.status == .enabled
+        isEnabled = false
+        refreshStatus()
     }
 
     var accessibilityStatus: String {
@@ -226,6 +288,8 @@ private final class LaunchAtLoginController: ObservableObject {
         return isEnabled ? "Enabled" : "Disabled"
     }
 
+    private(set) var needsSystemApproval = false
+
     func setEnabled(_ enabled: Bool) {
         do {
             if enabled {
@@ -234,26 +298,56 @@ private final class LaunchAtLoginController: ObservableObject {
                 try SMAppService.mainApp.unregister()
             }
 
-            isEnabled = SMAppService.mainApp.status == .enabled
-            errorMessage = nil
+            refreshStatus()
         } catch {
-            isEnabled = SMAppService.mainApp.status == .enabled
-            errorMessage = "Could not update launch at login"
-            print("Failed to update launch at login: \(error.localizedDescription)")
+            refreshStatus()
+            errorMessage = "Could not update launch at login: \(error.localizedDescription)"
+        }
+    }
+
+    func openSystemSettings() {
+        SMAppService.openSystemSettingsLoginItems()
+    }
+
+    private func refreshStatus() {
+        switch SMAppService.mainApp.status {
+        case .enabled:
+            isEnabled = true
+            needsSystemApproval = false
+            errorMessage = nil
+        case .requiresApproval:
+            isEnabled = false
+            needsSystemApproval = true
+            errorMessage = "Approve OnePlus Buds Menu in Login Items to finish enabling it."
+        case .notRegistered:
+            isEnabled = false
+            needsSystemApproval = false
+            errorMessage = nil
+        case .notFound:
+            isEnabled = false
+            needsSystemApproval = false
+            errorMessage = "Launch on login is unavailable for this copy of the app."
+        @unknown default:
+            isEnabled = false
+            needsSystemApproval = false
+            errorMessage = "Launch on login status is unavailable."
         }
     }
 }
 
 private struct PaperToggle: View {
     @Binding var isOn: Bool
+    let label: String
     let status: String
+    let enabledHelp: String
+    let disabledHelp: String
 
     var body: some View {
-        Toggle("Earbuds connection", isOn: $isOn)
+        Toggle(label, isOn: $isOn)
             .labelsHidden()
             .toggleStyle(PaperToggleStyle())
-            .help(isOn ? "Disconnect earbuds" : "Connect earbuds")
-            .accessibilityLabel("Earbuds connection")
+            .help(isOn ? enabledHelp : disabledHelp)
+            .accessibilityLabel(label)
             .accessibilityValue(status)
     }
 }
@@ -489,8 +583,6 @@ private extension Color {
     static let paperSecondaryText = paperTextBase.opacity(0.65)
 
     static let paperSelectedText = paperTextBase.opacity(0.90)
-
-    static let paperCloseText = paperSecondaryText
 
     static let paperInactiveIcon = dynamicColor(
         light: NSColor(red: 110 / 255, green: 110 / 255, blue: 115 / 255, alpha: 0.9),

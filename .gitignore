@@ -1,0 +1,19 @@
+.DS_Store
+
+# Xcode user state and build products
+xcuserdata/
+DerivedData/
+DerivedData-*/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# Local packaging output
+Artifacts/
+DMG-Staging*/
+.dmg-staging.*/
+Build/
+
+# Python packaging helpers
+__pycache__/
+*.pyc
