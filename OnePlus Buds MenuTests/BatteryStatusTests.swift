@@ -24,10 +24,15 @@ final class BatteryStatusTests: XCTestCase {
     }
 
     func testConnectionPhaseMessagesAreActionable() {
-        XCTAssertEqual(BudsConnectionPhase.waitingForBluetooth("Bluetooth is turned off").statusText, "Bluetooth is turned off")
-        XCTAssertEqual(BudsConnectionPhase.failed("No compatible earbuds were found").statusText, "No compatible earbuds were found")
+        XCTAssertEqual(
+            BudsConnectionPhase.waitingForBluetooth("Bluetooth is turned off").statusText,
+            "Bluetooth is turned off"
+        )
+        XCTAssertEqual(
+            BudsConnectionPhase.failed("No compatible earbuds were found").statusText,
+            "No compatible earbuds were found"
+        )
         XCTAssertTrue(BudsConnectionPhase.connecting.isBusy)
         XCTAssertFalse(BudsConnectionPhase.ready.isBusy)
     }
 }
-

@@ -89,7 +89,11 @@ final class BudsCommandController: NSObject, ObservableObject {
     }
 
     func toggleConnection() {
-        isConnectionEnabled ? disconnect() : connect()
+        if isConnectionEnabled {
+            disconnect()
+        } else {
+            connect()
+        }
     }
 
     func retry() {
@@ -138,7 +142,9 @@ final class BudsCommandController: NSObject, ObservableObject {
         resetPeripheralState(clearDeviceName: false)
         phase = .disabled
     }
+}
 
+private extension BudsCommandController {
     private func startConnectionIfPossible() {
         guard isConnectionEnabled, let central else { return }
         cancelScheduledWork()
@@ -181,7 +187,10 @@ final class BudsCommandController: NSObject, ObservableObject {
         }
 
         phase = .scanning
-        central.scanForPeripherals(withServices: [serviceUUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+        central.scanForPeripherals(
+            withServices: [serviceUUID],
+            options: [CBCentralManagerScanOptionAllowDuplicatesKey: false]
+        )
         setTimeout(after: 12, message: "No compatible earbuds were found", shouldRetry: true)
     }
 
@@ -437,7 +446,11 @@ extension BudsCommandController: CBCentralManagerDelegate {
         rssi RSSI: NSNumber
     ) {
         let name = peripheral.name ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String
-        guard let name, name.localizedCaseInsensitiveContains("OnePlus") || name.localizedCaseInsensitiveContains("Nord Buds") else {
+        guard
+            let name,
+            name.localizedCaseInsensitiveContains("OnePlus")
+                || name.localizedCaseInsensitiveContains("Nord Buds")
+        else {
             return
         }
         attachAndConnect(peripheral)
@@ -501,11 +514,17 @@ extension BudsCommandController: CBPeripheralDelegate {
             fail("Required controls are missing on this device", shouldRetry: false)
             return
         }
-        guard writeCharacteristic.properties.contains(.writeWithoutResponse) || writeCharacteristic.properties.contains(.write) else {
+        guard
+            writeCharacteristic.properties.contains(.writeWithoutResponse)
+                || writeCharacteristic.properties.contains(.write)
+        else {
             fail("The device control is not writable", shouldRetry: false)
             return
         }
-        guard notifyCharacteristic.properties.contains(.notify) || notifyCharacteristic.properties.contains(.indicate) else {
+        guard
+            notifyCharacteristic.properties.contains(.notify)
+                || notifyCharacteristic.properties.contains(.indicate)
+        else {
             fail("The device cannot report control changes", shouldRetry: false)
             return
         }
@@ -515,7 +534,11 @@ extension BudsCommandController: CBPeripheralDelegate {
         setTimeout(after: 5, message: "Could not enable earbud notifications", shouldRetry: true)
     }
 
-    func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
+    func peripheral(
+        _ peripheral: CBPeripheral,
+        didUpdateNotificationStateFor characteristic: CBCharacteristic,
+        error: Error?
+    ) {
         guard characteristic.uuid == notifyUUID else { return }
         if let error {
             fail("Notification setup failed: \(error.localizedDescription)", shouldRetry: true)

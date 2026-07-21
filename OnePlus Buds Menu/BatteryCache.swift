@@ -41,4 +41,3 @@ final class BatteryCache {
         return CachedCaseBattery(percentage: percentage, timestamp: timestamp)
     }
 }
-
