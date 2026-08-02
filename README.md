@@ -2,6 +2,10 @@
 
 A lightweight macOS menu bar app for controlling OnePlus Buds noise modes and viewing battery status from the menu bar.
 
+## Download
+
+[Download the latest macOS app (.dmg)](https://github.com/Saketdesign/OnePlus-Buds-Menu/releases/latest/download/OnePlus-Buds-Menu.dmg)
+
 ## Features
 
 - Connects to compatible OnePlus Buds over Bluetooth
