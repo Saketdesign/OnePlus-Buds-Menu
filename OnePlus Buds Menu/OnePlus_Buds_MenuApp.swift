@@ -102,7 +102,7 @@ private struct BudsPanelView: View {
                         NoiseControlOptionButton(
                             mode: mode,
                             isSelected: controller.selectedMode == mode,
-                            isLoading: controller.pendingMode == mode,
+                                isLoading: controller.pendingMode == mode,
                             isEnabled: controller.isCommandReady && !controller.isChangingNoiseControl
                         ) {
                             controller.select(mode)
@@ -213,16 +213,7 @@ private struct BudsPanelView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(width: 260)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.paperPanel)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(panelBorderColor, lineWidth: 1)
-                }
-                .shadow(color: panelShadowColor, radius: 35, x: 0, y: 24)
-                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.28 : 0.08), radius: 9, x: 0, y: 4)
-        )
+        .modifier(BudsPanelSurface(colorScheme: colorScheme))
         .animation(standardSpring, value: isSettingsExpanded)
         .animation(standardSpring, value: controller.isCommandReady)
         .onAppear {
@@ -236,16 +227,6 @@ private struct BudsPanelView: View {
 
     private var headerTitle: String {
         deviceTitle
-    }
-
-    private var panelBorderColor: Color {
-        colorScheme == .dark
-            ? Color.white.opacity(0.10)
-            : Color.black.opacity(0.08)
-    }
-
-    private var panelShadowColor: Color {
-        Color.black.opacity(colorScheme == .dark ? 0.55 : 0.18)
     }
 
     private var standardSpring: Animation {
@@ -263,5 +244,48 @@ private struct BudsPanelView: View {
         default:
             Color.paperSelected
         }
+    }
+}
+
+private struct BudsPanelSurface: ViewModifier {
+    let colorScheme: ColorScheme
+
+    private let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: shape)
+                .overlay {
+                    shape.stroke(borderColor, lineWidth: 1)
+                }
+                .shadow(color: shadowColor, radius: 35, x: 0, y: 24)
+                .shadow(color: closeShadowColor, radius: 9, x: 0, y: 4)
+        } else {
+            content
+                .background {
+                    shape
+                        .fill(.regularMaterial)
+                        .overlay {
+                            shape.stroke(borderColor, lineWidth: 1)
+                        }
+                        .shadow(color: shadowColor, radius: 35, x: 0, y: 24)
+                        .shadow(color: closeShadowColor, radius: 9, x: 0, y: 4)
+                }
+        }
+    }
+
+    private var borderColor: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.10)
+            : Color.black.opacity(0.08)
+    }
+
+    private var shadowColor: Color {
+        Color.black.opacity(colorScheme == .dark ? 0.55 : 0.18)
+    }
+
+    private var closeShadowColor: Color {
+        Color.black.opacity(colorScheme == .dark ? 0.28 : 0.08)
     }
 }
