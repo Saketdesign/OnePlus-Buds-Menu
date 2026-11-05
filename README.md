@@ -1,96 +1,80 @@
-# OnePlus Buds Menu
+# oneplus buds menu
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![macOS CI](https://github.com/Saketdesign/OnePlus-Buds-Menu/actions/workflows/ci.yml/badge.svg)](https://github.com/Saketdesign/OnePlus-Buds-Menu/actions/workflows/ci.yml)
+[![license: mit](https://img.shields.io/badge/license-mit-yellow.svg)](LICENSE)
+[![macos ci](https://github.com/Saketdesign/OnePlus-Buds-Menu/actions/workflows/ci.yml/badge.svg)](https://github.com/Saketdesign/OnePlus-Buds-Menu/actions/workflows/ci.yml)
 
-A lightweight macOS menu bar app for controlling OnePlus Buds noise modes and viewing battery status from the menu bar.
+macos menu bar app to switch noise modes and check battery on oneplus buds.
 
-## Download
+## download
 
-[Download the latest macOS app (.dmg)](https://github.com/Saketdesign/OnePlus-Buds-Menu/releases/latest/download/OnePlus-Buds-Menu.dmg)
+[download latest macos app (.dmg)](https://github.com/Saketdesign/OnePlus-Buds-Menu/releases/latest/download/OnePlus-Buds-Menu.dmg)
 
-## Features
+## what it does
 
-- Connects to compatible OnePlus Buds over Bluetooth
-- Switches between Noise Cancellation, Transparency, and Off modes
-- Shows left, right, and weighted total battery levels
-- Displays battery percentage directly in the macOS menu bar
-- Optional launch-at-login setting
-- Includes a DMG packaging script for distribution
+- connects to compatible oneplus buds over bluetooth
+- switches between noise cancellation, transparency, and off
+- shows left, right, and case battery levels right in the macos menu bar
+- optional launch at login
+- includes packaging script to generate a signed and notarized dmg
 
-## Requirements
+## requirements
 
-- macOS 13.0 or later
-- Xcode with SwiftUI and CoreBluetooth support
-- Compatible OnePlus Buds paired with the Mac
+- macos 13.0 or later
+- xcode with swiftui and corebluetooth support
+- compatible oneplus buds paired with your mac
 
-## Build And Run
+## build and run
 
-Open the project in Xcode:
+open the project in xcode:
 
 ```sh
 open "OnePlus Buds Menu.xcodeproj"
 ```
 
-Then select the `OnePlus Buds Menu` scheme and run the app.
+then select the `OnePlus Buds Menu` scheme and run the app.
 
-You can also build an unsigned Release app locally from the command line:
-
-```sh
-xcodebuild \
-  -project "OnePlus Buds Menu.xcodeproj" \
-  -scheme "OnePlus Buds Menu" \
-  -configuration Release \
-  -destination "generic/platform=macOS" \
-  -derivedDataPath Build/DerivedData \
-  CODE_SIGNING_ALLOWED=NO \
-  build
-```
-
-## Run Tests
+or build an unsigned release app from the command line:
 
 ```sh
-xcodebuild test \
-  -project "OnePlus Buds Menu.xcodeproj" \
-  -scheme "OnePlus Buds Menu" \
-  -destination "platform=macOS"
+xcodebuild   -project "OnePlus Buds Menu.xcodeproj"   -scheme "OnePlus Buds Menu"   -configuration Release   -destination "generic/platform=macOS"   -derivedDataPath Build/DerivedData   CODE_SIGNING_ALLOWED=NO   build
 ```
 
-## Create A GitHub Release DMG
+## run tests
 
-Public downloads should be Developer ID signed and notarized. First store
-notarization credentials in the Keychain:
+```sh
+xcodebuild test   -project "OnePlus Buds Menu.xcodeproj"   -scheme "OnePlus Buds Menu"   -destination "platform=macOS"
+```
+
+## create a release dmg
+
+save notarization credentials to your keychain once:
 
 ```sh
 xcrun notarytool store-credentials "OnePlusBudsMenu-Notary"
 ```
 
-Then run:
+then run:
 
 ```sh
-DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)" \
-NOTARY_KEYCHAIN_PROFILE="OnePlusBudsMenu-Notary" \
-Packaging/release.sh
+DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)" NOTARY_KEYCHAIN_PROFILE="OnePlusBudsMenu-Notary" Packaging/release.sh
 ```
 
-The notarized DMG and SHA-256 checksum are written to:
+the notarized dmg and sha-256 checksum are written to:
 
 ```text
 Artifacts/OnePlus-Buds-Menu.dmg
 Artifacts/OnePlus-Buds-Menu.dmg.sha256
 ```
 
-Upload both files to a GitHub Release. Do not commit generated apps, Derived
-Data, staging folders, or DMGs to the source tree.
+## notes
 
-## Notes
+this uses private bluetooth command packets to talk to oneplus buds. behavior can vary depending on your earbuds' firmware version and hardware model.
 
-The app uses private Bluetooth command packets for OnePlus Buds control. Behavior can vary by firmware version and device model.
+## community & support
 
-The project is built as a native SwiftUI menu bar app for macOS.
+- issue sla: bug reports and questions are answered within 24 hours.
+- discussions: join our [github discussions](https://github.com/Saketdesign/OnePlus-Buds-Menu/discussions).
 
+## license
 
-## Community & Support
-
-- **Issue SLA:** Bug reports and feature proposals are answered within 24 hours.
-- **Discussions:** Join our [GitHub Discussions](https://github.com/Saketdesign/OnePlus-Buds-Menu/discussions).
+[mit](LICENSE) © 2026 Saket Joshi
