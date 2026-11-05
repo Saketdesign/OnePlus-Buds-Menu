@@ -1,15 +1,15 @@
-# Contributing to OnePlus Buds Menu
+# contributing to oneplus buds menu
 
-Thank you for your interest in contributing!
+thanks for helping out.
 
-## Development Setup
+## local setup
 
-1. Clone this repository.
-2. Open `OnePlus Buds Menu.xcodeproj` in Xcode 15 or newer.
-3. Select scheme `OnePlus Buds Menu` and target `My Mac`.
-4. Run (`Cmd + R`) to launch and test locally.
+1. clone this repository.
+2. open `OnePlus Buds Menu.xcodeproj` in xcode 15 or newer.
+3. select scheme `OnePlus Buds Menu` and target `My Mac`.
+4. run (`Cmd + R`) to test locally.
 
-## Issues and PRs
+## issues and prs
 
-- Feel free to check open issues tagged `good first issue`.
-- Bug reports and PRs are reviewed within 24 hours.
+- check open issues tagged `good first issue`.
+- bug reports and prs are reviewed within 24 hours.
