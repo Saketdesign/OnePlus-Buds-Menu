@@ -1,5 +1,8 @@
 # OnePlus Buds Menu
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![macOS CI](https://github.com/Saketdesign/OnePlus-Buds-Menu/actions/workflows/ci.yml/badge.svg)](https://github.com/Saketdesign/OnePlus-Buds-Menu/actions/workflows/ci.yml)
+
 A lightweight macOS menu bar app for controlling OnePlus Buds noise modes and viewing battery status from the menu bar.
 
 ## Download
@@ -85,3 +88,9 @@ Data, staging folders, or DMGs to the source tree.
 The app uses private Bluetooth command packets for OnePlus Buds control. Behavior can vary by firmware version and device model.
 
 The project is built as a native SwiftUI menu bar app for macOS.
+
+
+## Community & Support
+
+- **Issue SLA:** Bug reports and feature proposals are answered within 24 hours.
+- **Discussions:** Join our [GitHub Discussions](https://github.com/Saketdesign/OnePlus-Buds-Menu/discussions).
