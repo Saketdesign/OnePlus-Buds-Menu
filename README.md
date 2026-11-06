@@ -36,13 +36,23 @@ then select the `OnePlus Buds Menu` scheme and run the app.
 or build an unsigned release app from the command line:
 
 ```sh
-xcodebuild   -project "OnePlus Buds Menu.xcodeproj"   -scheme "OnePlus Buds Menu"   -configuration Release   -destination "generic/platform=macOS"   -derivedDataPath Build/DerivedData   CODE_SIGNING_ALLOWED=NO   build
+xcodebuild \
+  -project "OnePlus Buds Menu.xcodeproj" \
+  -scheme "OnePlus Buds Menu" \
+  -configuration Release \
+  -destination "generic/platform=macOS" \
+  -derivedDataPath Build/DerivedData \
+  CODE_SIGNING_ALLOWED=NO \
+  build
 ```
 
 ## run tests
 
 ```sh
-xcodebuild test   -project "OnePlus Buds Menu.xcodeproj"   -scheme "OnePlus Buds Menu"   -destination "platform=macOS"
+xcodebuild test \
+  -project "OnePlus Buds Menu.xcodeproj" \
+  -scheme "OnePlus Buds Menu" \
+  -destination "platform=macOS"
 ```
 
 ## create a release dmg
@@ -56,7 +66,9 @@ xcrun notarytool store-credentials "OnePlusBudsMenu-Notary"
 then run:
 
 ```sh
-DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)" NOTARY_KEYCHAIN_PROFILE="OnePlusBudsMenu-Notary" Packaging/release.sh
+DEVELOPER_ID_APPLICATION="Developer ID Application: Your Name (TEAMID)" \
+NOTARY_KEYCHAIN_PROFILE="OnePlusBudsMenu-Notary" \
+Packaging/release.sh
 ```
 
 the notarized dmg and sha-256 checksum are written to:
